@@ -1,20 +1,5 @@
-import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, Text, View } from 'react-native';
+import { SpotifyLabScreen } from './src/features/spotifyLab/SpotifyLabScreen';
 
 export default function App() {
-  return (
-      <View style={styles.container}>
-        <Text>Spotify TFG</Text>
-        <Text>Primera prueba funcionando 🎧</Text>
-        <StatusBar style="auto" />
-      </View>
-  );
+    return <SpotifyLabScreen />;
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-});
