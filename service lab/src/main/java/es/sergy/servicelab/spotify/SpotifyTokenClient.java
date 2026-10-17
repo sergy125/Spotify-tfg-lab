@@ -1,5 +1,6 @@
-package es.sergy.servicelab;
+package es.sergy.servicelab.spotify;
 
+import es.sergy.servicelab.errors.ExternalApiException;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.HashSet;

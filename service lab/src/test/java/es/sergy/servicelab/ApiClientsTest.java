@@ -4,6 +4,12 @@ import static org.assertj.core.api.Assertions.*;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.*;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.*;
 
+import es.sergy.servicelab.errors.ExternalApiException;
+import es.sergy.servicelab.reccobeats.AudioFeatures;
+import es.sergy.servicelab.reccobeats.ReccoBeatsClient;
+import es.sergy.servicelab.spotify.SpotifyTokenClient;
+import es.sergy.servicelab.spotify.SpotifyTrack;
+import es.sergy.servicelab.spotify.TimeRange;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;

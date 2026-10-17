@@ -1,5 +1,7 @@
-package es.sergy.servicelab;
+package es.sergy.servicelab.tracks;
 
+import es.sergy.servicelab.reccobeats.AudioFeatures;
+import es.sergy.servicelab.spotify.SpotifyTrack;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;

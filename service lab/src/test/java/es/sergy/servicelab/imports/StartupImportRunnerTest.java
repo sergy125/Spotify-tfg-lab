@@ -1,8 +1,10 @@
-package es.sergy.servicelab;
+package es.sergy.servicelab.imports;
 
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
+import es.sergy.servicelab.errors.ExternalApiException;
+import es.sergy.servicelab.spotify.TimeRange;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;

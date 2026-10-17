@@ -1,4 +1,4 @@
-package es.sergy.servicelab;
+package es.sergy.servicelab.config;
 
 import java.net.http.HttpClient;
 import java.time.Duration;

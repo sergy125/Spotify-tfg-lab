@@ -1,4 +1,4 @@
-package es.sergy.servicelab;
+package es.sergy.servicelab.errors;
 
 import org.springframework.http.HttpStatus;
 

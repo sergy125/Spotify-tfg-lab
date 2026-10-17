@@ -1,4 +1,4 @@
-package es.sergy.servicelab;
+package es.sergy.servicelab.reccobeats;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 

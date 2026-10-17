@@ -1,5 +1,7 @@
-package es.sergy.servicelab;
+package es.sergy.servicelab.imports;
 
+import es.sergy.servicelab.errors.ExternalApiException;
+import es.sergy.servicelab.spotify.TimeRange;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;

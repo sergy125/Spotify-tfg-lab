@@ -1,10 +1,18 @@
-package es.sergy.servicelab;
+package es.sergy.servicelab.imports;
 
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
+import es.sergy.servicelab.errors.ExternalApiException;
+import es.sergy.servicelab.reccobeats.AudioFeatures;
+import es.sergy.servicelab.reccobeats.ReccoBeatsClient;
+import es.sergy.servicelab.spotify.SpotifyClient;
+import es.sergy.servicelab.spotify.SpotifyTrack;
+import es.sergy.servicelab.spotify.TimeRange;
+import es.sergy.servicelab.tracks.Track;
+import es.sergy.servicelab.tracks.TrackRepository;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Optional;
@@ -17,9 +25,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.HttpStatus;
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 @SpringBootTest(properties = {

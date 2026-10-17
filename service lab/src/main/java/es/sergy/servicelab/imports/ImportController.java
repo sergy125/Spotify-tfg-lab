@@ -1,5 +1,8 @@
-package es.sergy.servicelab;
+package es.sergy.servicelab.imports;
 
+import es.sergy.servicelab.spotify.TimeRange;
+import es.sergy.servicelab.tracks.Track;
+import es.sergy.servicelab.tracks.TrackRepository;
 import java.util.List;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;

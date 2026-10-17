@@ -1,4 +1,4 @@
-package es.sergy.servicelab;
+package es.sergy.servicelab.spotify;
 
 import java.util.Locale;
 

@@ -1,5 +1,6 @@
-package es.sergy.servicelab;
+package es.sergy.servicelab.reccobeats;
 
+import es.sergy.servicelab.errors.ExternalApiException;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import java.util.List;
 import java.util.Optional;

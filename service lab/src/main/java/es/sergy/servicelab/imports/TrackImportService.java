@@ -1,5 +1,13 @@
-package es.sergy.servicelab;
+package es.sergy.servicelab.imports;
 
+import es.sergy.servicelab.errors.ExternalApiException;
+import es.sergy.servicelab.reccobeats.AudioFeatures;
+import es.sergy.servicelab.reccobeats.ReccoBeatsClient;
+import es.sergy.servicelab.spotify.SpotifyClient;
+import es.sergy.servicelab.spotify.SpotifyTrack;
+import es.sergy.servicelab.spotify.TimeRange;
+import es.sergy.servicelab.tracks.Track;
+import es.sergy.servicelab.tracks.TrackRepository;
 import java.util.ArrayList;
 import java.util.List;
 import org.slf4j.Logger;

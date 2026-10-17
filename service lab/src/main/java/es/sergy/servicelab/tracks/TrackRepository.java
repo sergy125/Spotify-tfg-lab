@@ -1,4 +1,4 @@
-package es.sergy.servicelab;
+package es.sergy.servicelab.tracks;
 
 import java.util.List;
 import org.springframework.data.jpa.repository.JpaRepository;

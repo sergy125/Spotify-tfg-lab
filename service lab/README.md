@@ -157,18 +157,41 @@ Si el token falla durante la importación automática, el servidor sigue disponi
 
 ## Clases
 
-El código está en `src/main/java/es/sergy/servicelab/`:
+El código está agrupado por responsabilidad dentro de `src/main/java/es/sergy/servicelab/`:
 
-- `SpotifyClient`: interfaz independiente del mecanismo de acceso.
-- `SpotifyTokenClient`: implementación con token manual.
-- `ReccoBeatsClient`: resolución del ID y consulta del audio.
-- `Track` y `TrackRepository`: entidad JPA y acceso a SQLite.
-- `TrackImportService`: coordinación y persistencia del ranking.
-- `StartupImportRunner`: menú de consola e importación al arrancar.
-- `TimeRange`: los tres periodos admitidos y su valor para Spotify.
-- `ImportController`: los dos endpoints HTTP.
-- `SpotifyTrack` y `AudioFeatures`: DTO.
-- `HttpClientConfig`, `ExternalApiException` y `ApiExceptionHandler`: clientes HTTP, timeouts y errores.
+```text
+servicelab/
+├── ServiceLabApplication.java
+├── spotify/
+│   ├── SpotifyClient.java
+│   ├── SpotifyTokenClient.java
+│   ├── SpotifyTrack.java
+│   └── TimeRange.java
+├── reccobeats/
+│   ├── ReccoBeatsClient.java
+│   └── AudioFeatures.java
+├── tracks/
+│   ├── Track.java
+│   └── TrackRepository.java
+├── imports/
+│   ├── StartupImportRunner.java
+│   ├── TrackImportService.java
+│   └── ImportController.java
+├── config/
+│   └── HttpClientConfig.java
+└── errors/
+    ├── ExternalApiException.java
+    └── ApiExceptionHandler.java
+```
+
+- **`spotify`**: acceso a Spotify, metadatos y periodos del ranking.
+- **`reccobeats`**: consulta y representación de las características musicales.
+- **`tracks`**: entidad JPA y acceso a SQLite.
+- **`imports`**: menú de consola, coordinación de la importación y endpoints HTTP.
+- **`config`**: configuración de los clientes HTTP.
+- **`errors`**: excepciones y traducción a respuestas HTTP.
+
+La clase de arranque permanece en el paquete raíz para que Spring detecte los componentes, repositorios y entidades de todos los subpaquetes. Las pruebas de importación están en el paquete `imports` de `src/test/java`.
 
 Para añadir OAuth en el futuro, sustituye el bean `SpotifyTokenClient` por otra implementación de `SpotifyClient`. El servicio de importación depende únicamente de esa interfaz.
 
