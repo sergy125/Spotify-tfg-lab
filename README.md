@@ -1,6 +1,6 @@
 # Spotify TFG
 
-Dos proyectos independientes en un mismo repositorio. Cada uno conserva su configuración y sus dependencias.
+Tres proyectos independientes en un mismo repositorio. Cada uno conserva su configuración y sus dependencias.
 
 ## App móvil (`spotify-app/`)
 
@@ -31,3 +31,7 @@ python3 -m unittest discover -s tests -v
 La base de datos local se ha copiado, pero no se incluye en Git. El programa puede crearla de nuevo si no existe.
 
 Git se gestiona desde esta raíz. Ejecuta los comandos de cada proyecto desde su propia carpeta.
+
+## Service Lab (`service lab/`)
+
+Servicio Java 21 con Spring Boot, Maven y SQLite. Importa el top de Spotify y lo enriquece con ReccoBeats. Consulta [sus instrucciones de configuración y ejecución](service%20lab/README.md).

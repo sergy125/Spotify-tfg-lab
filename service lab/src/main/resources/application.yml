@@ -1,0 +1,47 @@
+spring:
+  config:
+    import:
+      - "optional:file:.env[.properties]"
+      - "optional:file:service lab/.env[.properties]"
+  application:
+    name: service-lab
+  main:
+    banner-mode: "off"
+    log-startup-info: false
+  datasource:
+    url: ${DB_URL:jdbc:sqlite:service-lab.db}
+    driver-class-name: org.sqlite.JDBC
+    hikari:
+      maximum-pool-size: 1
+      minimum-idle: 1
+      connection-init-sql: PRAGMA busy_timeout=5000
+  jpa:
+    database-platform: org.hibernate.community.dialect.SQLiteDialect
+    open-in-view: false
+    hibernate:
+      ddl-auto: update
+
+server:
+  address: ${SERVER_ADDRESS:127.0.0.1}
+  port: ${SERVER_PORT:8080}
+  error:
+    include-message: never
+    include-stacktrace: never
+
+spotify:
+  access-token: ${SPOTIFY_ACCESS_TOKEN:}
+  base-url: https://api.spotify.com/v1
+
+reccobeats:
+  base-url: https://api.reccobeats.com/v1
+
+import:
+  on-startup: ${IMPORT_ON_STARTUP:true}
+  time-range: ${IMPORT_TIME_RANGE:}
+
+logging:
+  level:
+    root: WARN
+    es.sergy.servicelab: INFO
+  pattern:
+    console: "%msg%n"

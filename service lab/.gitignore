@@ -1,0 +1,14 @@
+target/
+.env
+.env.*
+!.env.example
+.idea/
+*.iml
+.vscode/
+.DS_Store
+*.log
+.local/
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
