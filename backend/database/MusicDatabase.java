@@ -40,6 +40,14 @@ public class MusicDatabase {
         return connection;
     }
 
+    public void deleteAllTables() throws SQLException {
+        execute("DROP TABLE IF EXISTS Historial");
+        execute("DROP TABLE IF EXISTS top_short");
+        execute("DROP TABLE IF EXISTS top_medium");
+        execute("DROP TABLE IF EXISTS top_long");
+        execute("DROP TABLE IF EXISTS Songs");
+    }
+
     public void createAllTables() throws SQLException {
         createSongsTable();
         createHistorialTable();

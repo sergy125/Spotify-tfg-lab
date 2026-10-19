@@ -10,10 +10,13 @@ public class Main {
     public static void main(String[] args) throws SQLException, IOException, InterruptedException {
         String token = "BQBhvu5pBblZhn8i9lMYobcYH3yKHRooZCIkzf7CG3jedi8MgTD6oosvZvpuZwVtGXNLMrxDd7MsSo56iMll9nvuOVZgpHCh3j7VLCw1X4E6S8Lj8CnaWKX9ldv3Vsi4rRyGFT9faHjZrPRJC-_7acEZkrfoD5C4IzMbiewFk_v48tA21PFxVqlaslDneBEv4bdVki_KLfRUrd6jSLAnQZM8qYgPYTMZ4rX5Qb6qyEF_3n7tNN02fkrigE7V9P1U4bU3PsICy1HBs9rNar6PCcOkIN2JL2_0NMITlOAH0ZN0IWEsZEFSWSbAAa6ASlhtlg2WaxWe";
         MusicDatabase database = new MusicDatabase();
-        database.createAllTables();
 
         SpotifyClient client = new SpotifyClient(token);
         String json = client.getTopShort();
+
+        // Reset the test database so every song goes through ReccoBeats again.
+        database.deleteAllTables();
+        database.createAllTables();
 
         SpotifyProcessor processor = new SpotifyProcessor(database);
         processor.addTopShort(json, "9999");

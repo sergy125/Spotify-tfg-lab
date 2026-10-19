@@ -1,5 +1,6 @@
 package processor;
 
+import audiofeatures.Features;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -9,18 +10,20 @@ import models.Event;
 import models.Song;
 import models.User;
 
+import java.io.IOException;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 
 public class SpotifyProcessor {
     private final MusicDatabase database;
+    private final Features features = new Features();
 
     public SpotifyProcessor(MusicDatabase database) {
         this.database = database;
     }
 
-    public void addHistory(String json, String userId) throws SQLException {
+    public void addHistory(String json, String userId) throws SQLException, IOException, InterruptedException {
         JsonArray items = JsonParser.parseString(json).getAsJsonObject().getAsJsonArray("items");
         List<Song> songs = createSongs(items, true);
         List<Event> events = new ArrayList<>();
@@ -37,7 +40,7 @@ public class SpotifyProcessor {
         }
     }
 
-    public void addTopLong(String json, String userId) throws SQLException {
+    public void addTopLong(String json, String userId) throws SQLException, IOException, InterruptedException {
         List<Song> songs = createSongs(JsonParser.parseString(json)
                 .getAsJsonObject().getAsJsonArray("items"), false);
         database.deleteTopLong(userId);
@@ -46,7 +49,7 @@ public class SpotifyProcessor {
         }
     }
 
-    public void addTopMedium(String json, String userId) throws SQLException {
+    public void addTopMedium(String json, String userId) throws SQLException, IOException, InterruptedException {
         List<Song> songs = createSongs(JsonParser.parseString(json)
                 .getAsJsonObject().getAsJsonArray("items"), false);
         database.deleteTopMedium(userId);
@@ -55,7 +58,7 @@ public class SpotifyProcessor {
         }
     }
 
-    public void addTopShort(String json, String userId) throws SQLException {
+    public void addTopShort(String json, String userId) throws SQLException, IOException, InterruptedException {
         List<Song> songs = createSongs(JsonParser.parseString(json)
                 .getAsJsonObject().getAsJsonArray("items"), false);
         database.deleteTopShort(userId);
@@ -64,7 +67,7 @@ public class SpotifyProcessor {
         }
     }
 
-    private List<Song> createSongs(JsonArray items, boolean history) throws SQLException {
+    private List<Song> createSongs(JsonArray items, boolean history) throws SQLException, IOException, InterruptedException {
         List<Song> songs = new ArrayList<>();
         for (JsonElement item : items) {
             JsonObject track = history
@@ -86,8 +89,7 @@ public class SpotifyProcessor {
                         getString(track, "href"),
                         getString(track.getAsJsonObject("external_ids"), "isrc"));
 
-                // TODO: Pass this new song to the song processing module to obtain audio features.
-                // Until that module exists, store the Spotify data with null audio features.
+                song = features.addFeatures(song);
                 database.createSong(song);
             }
             // Existing songs are reused without replacing their data or audio features.
