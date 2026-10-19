@@ -213,6 +213,55 @@ public class MusicDatabase {
             return statement.executeUpdate() > 0;
         }
     }
+    //BORRAR POR USUARIO
+    public void deleteHistory(String userId) throws SQLException {
+        deleteUserList("Historial", userId);
+    }
+
+    public void deleteTopShort(String userId) throws SQLException {
+        deleteUserList("top_short", userId);
+    }
+
+    public void deleteTopMedium(String userId) throws SQLException {
+        deleteUserList("top_medium", userId);
+    }
+
+    public void deleteTopLong(String userId) throws SQLException {
+        deleteUserList("top_long", userId);
+    }
+
+    public void createTopShort(String userId, int position, String songId) throws SQLException {
+        createTopEntry("top_short", userId, position, songId);
+    }
+
+    public void createTopMedium(String userId, int position, String songId) throws SQLException {
+        createTopEntry("top_medium", userId, position, songId);
+    }
+
+    public void createTopLong(String userId, int position, String songId) throws SQLException {
+        createTopEntry("top_long", userId, position, songId);
+    }
+
+    // Table names only come from the fixed public methods above.
+    private void deleteUserList(String table, String userId) throws SQLException {
+        try (Connection connection = connect();
+             PreparedStatement statement = connection.prepareStatement(
+                     "DELETE FROM " + table + " WHERE user_id = ?")) {
+            statement.setString(1, userId);
+            statement.executeUpdate();
+        }
+    }
+
+    private void createTopEntry(String table, String userId, int position, String songId) throws SQLException {
+        try (Connection connection = connect();
+             PreparedStatement statement = connection.prepareStatement(
+                     "INSERT INTO " + table + " (user_id, position, song_id) VALUES (?, ?, ?)")) {
+            statement.setString(1, userId);
+            statement.setInt(2, position);
+            statement.setString(3, songId);
+            statement.executeUpdate();
+        }
+    }
 
     private void bindEvent(PreparedStatement statement, Event event, int start) throws SQLException {
         statement.setString(start, event.getListener().getUserId());
