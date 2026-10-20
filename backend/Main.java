@@ -1,29 +1,60 @@
 import database.MusicDatabase;
 import models.Song;
+import models.User;
 import processor.SpotifyProcessor;
 import spotify.SpotifyClient;
+import spotify.SpotifyAuth;
+import spotify.SpotifyLogin;
 
 import java.io.IOException;
 import java.sql.SQLException;
 
 public class Main {
     public static void main(String[] args) throws SQLException, IOException, InterruptedException {
-        String token = "BQBhvu5pBblZhn8i9lMYobcYH3yKHRooZCIkzf7CG3jedi8MgTD6oosvZvpuZwVtGXNLMrxDd7MsSo56iMll9nvuOVZgpHCh3j7VLCw1X4E6S8Lj8CnaWKX9ldv3Vsi4rRyGFT9faHjZrPRJC-_7acEZkrfoD5C4IzMbiewFk_v48tA21PFxVqlaslDneBEv4bdVki_KLfRUrd6jSLAnQZM8qYgPYTMZ4rX5Qb6qyEF_3n7tNN02fkrigE7V9P1U4bU3PsICy1HBs9rNar6PCcOkIN2JL2_0NMITlOAH0ZN0IWEsZEFSWSbAAa6ASlhtlg2WaxWe";
+        SpotifyAuth auth = new SpotifyAuth();
         MusicDatabase database = new MusicDatabase();
-
-        SpotifyClient client = new SpotifyClient(token);
-        String json = client.getTopShort();
-
-        // Reset the test database so every song goes through ReccoBeats again.
-        database.deleteAllTables();
         database.createAllTables();
 
-        SpotifyProcessor processor = new SpotifyProcessor(database);
-        processor.addTopShort(json, "9999");
+        SpotifyLogin login = new SpotifyLogin(auth, database);
+        User user = login.login();
+        System.out.println("Usuario conectado: " + user.getUserId());
 
-        System.out.println("Short-term top saved to Songs and top_short for user 9999.");
-        System.out.println(formatJson(json));
+        SpotifyClient client = new SpotifyClient(user.getAccessToken());
+        SpotifyProcessor processor = new SpotifyProcessor(database);
+        getHistory(client, processor, user.getUserId());
+        getTopShort(client, processor, user.getUserId());
+        getTopMedium(client, processor, user.getUserId());
+        getTopLong(client, processor, user.getUserId());
     }
+
+    private static void getHistory(SpotifyClient client, SpotifyProcessor processor, String userId)
+            throws IOException, InterruptedException, SQLException {
+        String json = client.getHistory();
+        processor.addHistory(json, userId);
+        System.out.println("history saved");
+    }
+
+    private static void getTopShort(SpotifyClient client, SpotifyProcessor processor, String userId)
+            throws IOException, InterruptedException, SQLException {
+        String json = client.getTopShort();
+        processor.addTopShort(json, userId);
+        System.out.println("top short saved");
+    }
+
+    private static void getTopMedium(SpotifyClient client, SpotifyProcessor processor, String userId)
+            throws IOException, InterruptedException, SQLException {
+        String json = client.getTopMedium();
+        processor.addTopMedium(json, userId);
+        System.out.println("top medium saved");
+    }
+
+    private static void getTopLong(SpotifyClient client, SpotifyProcessor processor, String userId)
+            throws IOException, InterruptedException, SQLException {
+        String json = client.getTopLong();
+        processor.addTopLong(json, userId);
+        System.out.println("top long saved");
+    }
+
     private static String formatJson(String json) {
         StringBuilder formatted = new StringBuilder();
         int indentation = 0;

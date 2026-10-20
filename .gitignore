@@ -57,3 +57,6 @@ __pycache__/
 *.pyc
 *.db
 *.db-journal
+
+# Configuración local con credenciales de Spotify
+/.run/Backend Main.run.xml

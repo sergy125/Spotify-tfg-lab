@@ -12,6 +12,11 @@ import org.springframework.web.client.RestClient;
 @Configuration
 public class HttpClientConfig {
     @Bean
+    RestClient spotifyAccountsRestClient() {
+        return client("https://accounts.spotify.com");
+    }
+
+    @Bean
     RestClient spotifyRestClient(@Value("${spotify.base-url}") String baseUrl) {
         return client(baseUrl);
     }

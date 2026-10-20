@@ -46,9 +46,11 @@ public class MusicDatabase {
         execute("DROP TABLE IF EXISTS top_medium");
         execute("DROP TABLE IF EXISTS top_long");
         execute("DROP TABLE IF EXISTS Songs");
+        deleteUsersTable();
     }
 
     public void createAllTables() throws SQLException {
+        createUsersTable();
         createSongsTable();
         createHistorialTable();
         createTopShortTable();
@@ -59,6 +61,61 @@ public class MusicDatabase {
     private void execute(String sql) throws SQLException {
         try (Connection connection = connect(); Statement statement = connection.createStatement()) {
             statement.execute(sql);
+        }
+    }
+
+    public void createUsersTable() throws SQLException {
+        execute("CREATE TABLE IF NOT EXISTS Users (user_id TEXT PRIMARY KEY NOT NULL, access_token TEXT, refresh_token TEXT, expires_at TEXT, authorized_at TEXT)");
+    }
+
+    public void deleteUsersTable() throws SQLException {
+        execute("DROP TABLE IF EXISTS Users");
+    }
+
+    public void createUser(User user) throws SQLException {
+        try (Connection connection = connect();
+             PreparedStatement statement = connection.prepareStatement(
+                     "INSERT INTO Users (user_id, access_token, refresh_token, expires_at, authorized_at) VALUES (?, ?, ?, ?, ?)")) {
+            statement.setString(1, user.getUserId());
+            statement.setString(2, user.getAccessToken());
+            statement.setString(3, user.getRefreshToken());
+            statement.setString(4, user.getExpiresAt());
+            statement.setString(5, user.getAuthorizedAt());
+            statement.executeUpdate();
+        }
+    }
+
+    public Optional<User> getUser(String userId) throws SQLException {
+        try (Connection connection = connect();
+             PreparedStatement statement = connection.prepareStatement("SELECT * FROM Users WHERE user_id = ?")) {
+            statement.setString(1, userId);
+            try (ResultSet result = statement.executeQuery()) {
+                if (!result.next()) return Optional.empty();
+                return Optional.of(new User(result.getString("user_id"), result.getString("access_token"),
+                        result.getString("refresh_token"), result.getString("expires_at"),
+                        result.getString("authorized_at")));
+            }
+        }
+    }
+
+    public boolean updateUser(User user) throws SQLException {
+        try (Connection connection = connect();
+             PreparedStatement statement = connection.prepareStatement(
+                     "UPDATE Users SET access_token = ?, refresh_token = ?, expires_at = ?, authorized_at = ? WHERE user_id = ?")) {
+            statement.setString(1, user.getAccessToken());
+            statement.setString(2, user.getRefreshToken());
+            statement.setString(3, user.getExpiresAt());
+            statement.setString(4, user.getAuthorizedAt());
+            statement.setString(5, user.getUserId());
+            return statement.executeUpdate() > 0;
+        }
+    }
+
+    public boolean deleteUser(String userId) throws SQLException {
+        try (Connection connection = connect();
+             PreparedStatement statement = connection.prepareStatement("DELETE FROM Users WHERE user_id = ?")) {
+            statement.setString(1, userId);
+            return statement.executeUpdate() > 0;
         }
     }
 

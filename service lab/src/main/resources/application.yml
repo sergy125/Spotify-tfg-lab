@@ -29,6 +29,9 @@ server:
     include-stacktrace: never
 
 spotify:
+  client-id: ${SPOTIFY_CLIENT_ID:}
+  client-secret: ${SPOTIFY_CLIENT_SECRET:}
+  redirect-uri: ${SPOTIFY_REDIRECT_URI:http://127.0.0.1:8080/spotify/callback}
   access-token: ${SPOTIFY_ACCESS_TOKEN:}
   base-url: https://api.spotify.com/v1
 

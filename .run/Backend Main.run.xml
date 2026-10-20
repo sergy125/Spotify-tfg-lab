@@ -1,5 +1,10 @@
 <component name="ProjectRunConfigurationManager">
   <configuration default="false" name="Backend Main" type="Application" factoryName="Application">
+    <envs>
+      <env name="SPOTIFY_CLIENT_ID" value="570ac7abcc45463e9b1418ee399d2cb0" />
+      <env name="SPOTIFY_CLIENT_SECRET" value="0a3189a2af1c4cfc889466660dea22f2" />
+      <env name="SPOTIFY_REDIRECT_URI" value="http://127.0.0.1:8888/callback" />
+    </envs>
     <option name="MAIN_CLASS_NAME" value="Main" />
     <module name="spotify-tfg" />
     <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/backend" />

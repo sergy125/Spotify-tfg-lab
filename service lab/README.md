@@ -50,7 +50,7 @@ La migración de este equipo conserva las canciones de la base anterior. Sus arc
 
 El token está en el archivo local **`.env`**, excluido de Git. Cuando expire, sustituye `SPOTIFY_ACCESS_TOKEN` y vuelve a pulsar Play. El token debe pertenecer a un usuario y tener el permiso **`user-top-read`**; introduce solo su valor, sin `Bearer`.
 
-La aplicación carga `.env` desde esta carpeta o desde `service lab/.env` al ejecutarla desde la raíz. Las variables de entorno reales del proceso tienen prioridad. No se implementa OAuth ni renovación de tokens.
+La aplicación carga `.env` desde esta carpeta o desde `service lab/.env` al ejecutarla desde la raíz. Las variables de entorno reales del proceso tienen prioridad. El inicio de sesión opcional permite obtener un token desde el navegador; todavía no se guardan usuarios ni se renuevan tokens automáticamente.
 
 Para una instalación nueva:
 
@@ -70,6 +70,48 @@ Edita el token. Usa el formato `VARIABLE=valor`, sin `export` ni comillas, ya qu
 | `IMPORT_TIME_RANGE` | Vacío | Opcional: periodo exacto para ejecuciones sin menú (`short_term`, `medium_term`, `long_term`) |
 
 SQLite no necesita usuario ni contraseña. La aplicación limita el pool a una conexión y espera hasta cinco segundos si el archivo está bloqueado por otra operación.
+
+## Obtener un token iniciando sesión en Spotify
+
+Ejemplo local sencillo: `SpotifyLoginController` añade dos direcciones y mantiene intacta
+`SpotifyTokenClient`, que sigue leyendo `SPOTIFY_ACCESS_TOKEN` al arrancar.
+
+1. En el panel de Spotify, regenera el secreto compartido y registra exactamente
+   `http://127.0.0.1:8080/spotify/callback` en **Redirect URIs**. Sustituye la dirección
+   del ejemplo anterior con puerto 8888, o añade esta nueva.
+2. Añade estas variables al `.env` existente (no reemplaces las demás):
+
+   ```dotenv
+   SPOTIFY_CLIENT_ID=570ac7abcc45463e9b1418ee399d2cb0
+   SPOTIFY_CLIENT_SECRET=tu_nuevo_secreto
+   SPOTIFY_REDIRECT_URI=http://127.0.0.1:8080/spotify/callback
+   IMPORT_ON_STARTUP=false
+   ```
+
+3. Arranca con Play o `./run-local.sh` y abre
+   **http://127.0.0.1:8080/spotify/login** en el navegador del mismo equipo.
+4. Inicia sesión en la página de Spotify y acepta el permiso para consultar tu top.
+   Volverás a una respuesta JSON con `access_token` y `expires_in` (segundos de validez).
+5. Copia solo el valor de `access_token` a `SPOTIFY_ACCESS_TOKEN` en `.env`.
+   Pon `IMPORT_ON_STARTUP=true`, detén y vuelve a arrancar para importar con el menú.
+
+El **Client ID** identifica la aplicación y se incluye en el enlace que abre Spotify.
+El **Client secret** se lee del `.env` en el servidor Java y se envía solo a Spotify
+para cambiar el código de autorización por un token. No se incluye en el enlace,
+no se devuelve al navegador y no debe ponerse en Expo ni subirse a Git.
+El `.env` está excluido de Git; `.env.example` contiene solo un marcador del secreto.
+
+`login()` crea el enlace y un valor aleatorio `state` guardado en la sesión del navegador.
+`callback()` comprueba ese valor (válido diez minutos y un solo uso) y cambia el código
+por un token. La contraseña se escribe exclusivamente en Spotify. Si rechazas el permiso,
+el código caduca o falla la petición, vuelve a abrir `/spotify/login`.
+
+Esta versión muestra un token privado en el navegador para copiarlo manualmente;
+no compartas esa respuesta. Está pensada para el laboratorio escuchando en `127.0.0.1`.
+No guarda tokens en SQLite, no conecta varias cuentas a las importaciones y descarta
+el refresh token. Cuando caduque el acceso, repite el inicio de sesión. Automatizar la
+renovación y asociar tokens a usuarios sería el siguiente paso.
+Si cambias el puerto del servidor, cambia también la URI en `.env` y en Spotify.
 
 ## Java 21 y Maven en otro equipo
 
@@ -164,6 +206,7 @@ servicelab/
 ├── ServiceLabApplication.java
 ├── spotify/
 │   ├── SpotifyClient.java
+│   ├── SpotifyLoginController.java
 │   ├── SpotifyTokenClient.java
 │   ├── SpotifyTrack.java
 │   └── TimeRange.java
