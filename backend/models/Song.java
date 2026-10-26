@@ -1,6 +1,7 @@
 package models;
 
 public class Song {
+    private boolean ai;
     private String id;
     private String nombre;
     private String artistas;
@@ -56,6 +57,17 @@ public class Song {
         this.speechiness = speechiness;
         this.tempo = tempo;
         this.valence = valence;
+    }
+
+    public boolean isAi() { return ai; }
+
+    public void setAi(boolean ai) { this.ai = ai; }
+
+    public boolean hasMissingFeatures() {
+        return acousticness == null || danceability == null || energy == null
+                || instrumentalness == null || key == null || liveness == null
+                || loudness == null || mode == null || speechiness == null
+                || tempo == null || valence == null;
     }
 
     public String getId() {

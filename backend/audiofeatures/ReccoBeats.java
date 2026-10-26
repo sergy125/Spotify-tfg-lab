@@ -19,17 +19,27 @@ public class ReccoBeats {
             .connectTimeout(Duration.ofSeconds(20)).build();
 
     public Song addFeatures(Song song) throws IOException, InterruptedException {
+        findFeatures(song);
+        return song;
+    }
+
+    /** Indica si ReccoBeats ha completado las audiofeatures; los errores de red se propagan. */
+    public boolean findFeatures(Song song) throws IOException, InterruptedException {
         String spotifyId = URLEncoder.encode(song.getId(), StandardCharsets.UTF_8);
         JsonObject response = get("/track?ids=" + spotifyId);
-        if (response == null) return song;
+        if (response == null) return false;
 
         JsonArray tracks = response.getAsJsonArray("content");
-        if (tracks.isEmpty()) return song;
+        if (tracks.isEmpty()) return false;
+
+        JsonObject track = tracks.get(0).getAsJsonObject();
+        Integer popularity = getInteger(track, "popularity");
+        if (popularity != null) song.setPopularidad(popularity);
 
         // Audio features require the ReccoBeats ID, not the Spotify ID.
-        String reccoId = tracks.get(0).getAsJsonObject().get("id").getAsString();
+        String reccoId = track.get("id").getAsString();
         JsonObject features = get("/track/" + reccoId + "/audio-features");
-        if (features == null) return song;
+        if (features == null) return !song.hasMissingFeatures();
 
         song.setAcousticness(getDouble(features, "acousticness"));
         song.setDanceability(getDouble(features, "danceability"));
@@ -42,7 +52,8 @@ public class ReccoBeats {
         song.setSpeechiness(getDouble(features, "speechiness"));
         song.setTempo(getDouble(features, "tempo"));
         song.setValence(getDouble(features, "valence"));
-        return song;
+        if (!song.hasMissingFeatures()) song.setAi(false);
+        return !song.hasMissingFeatures();
     }
 
     JsonObject get(String endpoint) throws IOException, InterruptedException {

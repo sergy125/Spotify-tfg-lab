@@ -14,6 +14,8 @@ import java.io.IOException;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 public class SpotifyProcessor {
     private final MusicDatabase database;
@@ -32,7 +34,7 @@ public class SpotifyProcessor {
             events.add(new Event(new User(userId), songs.get(i), time));
         }
 
-        database.deleteHistory(userId);
+        // Conserva las escuchas anteriores; la identidad es usuario + canción + played_at.
         for (Event event : events) {
             if (database.getEvent(event).isEmpty()) {
                 database.createEvent(event);
@@ -69,12 +71,14 @@ public class SpotifyProcessor {
 
     private List<Song> createSongs(JsonArray items, boolean history) throws SQLException, IOException, InterruptedException {
         List<Song> songs = new ArrayList<>();
+        Map<String, Song> unique = new LinkedHashMap<>();
         for (JsonElement item : items) {
             JsonObject track = history
                     ? item.getAsJsonObject().getAsJsonObject("track")
                     : item.getAsJsonObject();
             String songId = track.get("id").getAsString();
-            Song song = database.getSong(songId).orElse(null);
+            Song song = unique.get(songId);
+            if (song == null) song = database.getSong(songId).orElse(null);
 
             if (song == null) {
                 StringBuilder artists = new StringBuilder();
@@ -89,11 +93,16 @@ public class SpotifyProcessor {
                         getString(track, "href"),
                         getString(track.getAsJsonObject("external_ids"), "isrc"));
 
-                song = features.addFeatures(song);
-                database.createSong(song);
+
             }
-            // Existing songs are reused without replacing their data or audio features.
+            unique.put(songId, song);
             songs.add(song);
+        }
+        List<Song> pending = unique.values().stream().filter(song -> song.hasMissingFeatures() || song.getPopularidad() == null).toList();
+        features.addFeatures(pending);
+        for (Song song : unique.values()) {
+            if (database.getSong(song.getId()).isEmpty()) database.createSong(song);
+            else if (pending.contains(song)) database.updateSong(song);
         }
         return songs;
     }

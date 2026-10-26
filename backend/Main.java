@@ -11,6 +11,9 @@ import java.sql.SQLException;
 
 public class Main {
     public static void main(String[] args) throws SQLException, IOException, InterruptedException {
+        new BackendConsole().start();
+
+        /* Código anterior:
         SpotifyAuth auth = new SpotifyAuth();
         MusicDatabase database = new MusicDatabase();
         database.createAllTables();
@@ -25,6 +28,7 @@ public class Main {
         getTopShort(client, processor, user.getUserId());
         getTopMedium(client, processor, user.getUserId());
         getTopLong(client, processor, user.getUserId());
+        */
     }
 
     private static void getHistory(SpotifyClient client, SpotifyProcessor processor, String userId)

@@ -1,6 +1,7 @@
 package es.sergy.servicelab.spotify;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import es.sergy.servicelab.database.MusicDatabase;
 import jakarta.servlet.http.HttpSession;
 import java.net.URI;
 import java.time.Instant;
@@ -20,19 +21,24 @@ import org.springframework.web.client.RestClientException;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.util.UriComponentsBuilder;
 
-/** Primer paso del laboratorio: autorizar una cuenta y mostrar su access token. */
+/** Autoriza una cuenta, guarda su perfil y muestra su access token. */
 @RestController
 public class SpotifyLoginController {
     private final RestClient accounts;
+    private final RestClient spotify;
+    private final MusicDatabase database;
     private final String clientId;
     private final String clientSecret;
     private final String redirectUri;
 
     public SpotifyLoginController(@Qualifier("spotifyAccountsRestClient") RestClient accounts,
+            @Qualifier("spotifyRestClient") RestClient spotify, MusicDatabase database,
             @Value("${spotify.client-id}") String clientId,
             @Value("${spotify.client-secret}") String clientSecret,
             @Value("${spotify.redirect-uri}") String redirectUri) {
         this.accounts = accounts;
+        this.spotify = spotify;
+        this.database = database;
         this.clientId = clientId.trim();
         this.clientSecret = clientSecret.trim();
         this.redirectUri = redirectUri;
@@ -89,6 +95,13 @@ public class SpotifyLoginController {
                     || token.expires_in() <= 0) {
                 return message(HttpStatus.BAD_GATEWAY, "Spotify devolvió una respuesta no válida.");
             }
+            Profile profile = spotify.get().uri("/me")
+                    .headers(headers -> headers.setBearerAuth(token.access_token()))
+                    .retrieve().body(Profile.class);
+            if (profile == null || profile.id() == null || profile.id().isBlank()) {
+                return message(HttpStatus.BAD_GATEWAY, "Spotify devolvió un perfil no válido.");
+            }
+            database.saveUser(profile.id(), profile.display_name());
             return ResponseEntity.ok().cacheControl(CacheControl.noStore())
                     .header("Referrer-Policy", "no-referrer").body(token);
         } catch (RestClientException ex) {
@@ -102,6 +115,9 @@ public class SpotifyLoginController {
         return ResponseEntity.status(status).cacheControl(CacheControl.noStore())
                 .header("Referrer-Policy", "no-referrer").body(text);
     }
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public record Profile(String id, String display_name) { }
 
     // Este ejemplo solo muestra el access token: no guarda ni expone el refresh token.
     @JsonIgnoreProperties(ignoreUnknown = true)

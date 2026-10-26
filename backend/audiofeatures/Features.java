@@ -1,24 +1,31 @@
 package audiofeatures;
 
 import models.Song;
-
 import java.io.IOException;
+import java.util.List;
+import java.util.ArrayList;
 
 public class Features {
-    private final ReccoBeats reccoBeats = new ReccoBeats();
+    private final ReccoBeats reccoBeats;
+    private final IAfeatures ia;
+
+    public Features() { this(new ReccoBeats(), new IAfeatures()); }
+
+    Features(ReccoBeats reccoBeats, IAfeatures ia) {
+        this.reccoBeats = reccoBeats;
+        this.ia = ia;
+    }
 
     public Song addFeatures(Song song) throws IOException, InterruptedException {
-        song = reccoBeats.addFeatures(song);
+        return reccoBeats.addFeatures(song);
+    }
 
-        if (song.getAcousticness() == null && song.getDanceability() == null
-                && song.getEnergy() == null && song.getInstrumentalness() == null
-                && song.getKey() == null && song.getLiveness() == null
-                && song.getLoudness() == null && song.getMode() == null
-                && song.getSpeechiness() == null && song.getTempo() == null
-                && song.getValence() == null) {
-            // TODO: Call the AI features class here when ReccoBeats has no audio features.
+    public void addFeatures(List<Song> songs) throws IOException, InterruptedException {
+        List<Song> notFound = new ArrayList<>();
+        for (Song song : songs) {
+            if ((song.hasMissingFeatures() || song.getPopularidad() == null)
+                    && !reccoBeats.findFeatures(song)) notFound.add(song);
         }
-
-        return song;
+        ia.addFeatures(notFound);
     }
 }

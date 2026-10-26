@@ -121,6 +121,14 @@ public class MusicDatabase {
 
     public void createSongsTable() throws SQLException {
         execute("CREATE TABLE IF NOT EXISTS Songs (\"id\" TEXT PRIMARY KEY NOT NULL, \"nombre\" TEXT, \"artistas\" TEXT, \"album\" TEXT, \"duracionMs\" INTEGER, \"popularidad\" INTEGER, \"href\" TEXT, \"isrc\" TEXT, \"acousticness\" REAL, \"danceability\" REAL, \"energy\" REAL, \"instrumentalness\" REAL, \"key\" INTEGER, \"liveness\" REAL, \"loudness\" REAL, \"mode\" INTEGER, \"speechiness\" REAL, \"tempo\" REAL, \"valence\" REAL)");
+        // Migración compatible con la base lab existente.
+        try (Connection connection = connect(); Statement statement = connection.createStatement()) {
+            boolean hasAi = false;
+            try (ResultSet columns = statement.executeQuery("PRAGMA table_info(Songs)")) {
+                while (columns.next()) if ("ai".equals(columns.getString("name"))) hasAi = true;
+            }
+            if (!hasAi) statement.execute("ALTER TABLE Songs ADD COLUMN ai BOOLEAN NOT NULL DEFAULT 0 CHECK (ai IN (0, 1))");
+        }
     }
 
     public void createHistorialTable() throws SQLException {
@@ -141,7 +149,7 @@ public class MusicDatabase {
 
     public void createSong(Song song) throws SQLException {
         try (Connection connection = connect();
-             PreparedStatement statement = connection.prepareStatement("INSERT INTO Songs (\"id\", \"nombre\", \"artistas\", \"album\", \"duracionMs\", \"popularidad\", \"href\", \"isrc\", \"acousticness\", \"danceability\", \"energy\", \"instrumentalness\", \"key\", \"liveness\", \"loudness\", \"mode\", \"speechiness\", \"tempo\", \"valence\") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")) {
+             PreparedStatement statement = connection.prepareStatement("INSERT INTO Songs (\"id\", \"nombre\", \"artistas\", \"album\", \"duracionMs\", \"popularidad\", \"href\", \"isrc\", \"acousticness\", \"danceability\", \"energy\", \"instrumentalness\", \"key\", \"liveness\", \"loudness\", \"mode\", \"speechiness\", \"tempo\", \"valence\", ai) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")) {
             statement.setObject(1, song.getId());
             statement.setObject(2, song.getNombre());
             statement.setObject(3, song.getArtistas());
@@ -161,6 +169,7 @@ public class MusicDatabase {
             statement.setObject(17, song.getSpeechiness());
             statement.setObject(18, song.getTempo());
             statement.setObject(19, song.getValence());
+            statement.setBoolean(20, song.isAi());
             statement.executeUpdate();
         }
     }
@@ -178,6 +187,7 @@ public class MusicDatabase {
                 if (!result.next()) return Optional.empty();
                 Song song = new Song();
                 song.setId(result.getString("id"));
+                song.setAi(result.getBoolean("ai"));
                 song.setNombre(result.getString("nombre"));
                 song.setArtistas(result.getString("artistas"));
                 song.setAlbum(result.getString("album"));
@@ -203,7 +213,7 @@ public class MusicDatabase {
 
     public boolean updateSong(Song song) throws SQLException {
         try (Connection connection = connect();
-             PreparedStatement statement = connection.prepareStatement("UPDATE Songs SET \"nombre\" = ?, \"artistas\" = ?, \"album\" = ?, \"duracionMs\" = ?, \"popularidad\" = ?, \"href\" = ?, \"isrc\" = ?, \"acousticness\" = ?, \"danceability\" = ?, \"energy\" = ?, \"instrumentalness\" = ?, \"key\" = ?, \"liveness\" = ?, \"loudness\" = ?, \"mode\" = ?, \"speechiness\" = ?, \"tempo\" = ?, \"valence\" = ? WHERE id = ?")) {
+             PreparedStatement statement = connection.prepareStatement("UPDATE Songs SET \"nombre\" = ?, \"artistas\" = ?, \"album\" = ?, \"duracionMs\" = ?, \"popularidad\" = ?, \"href\" = ?, \"isrc\" = ?, \"acousticness\" = ?, \"danceability\" = ?, \"energy\" = ?, \"instrumentalness\" = ?, \"key\" = ?, \"liveness\" = ?, \"loudness\" = ?, \"mode\" = ?, \"speechiness\" = ?, \"tempo\" = ?, \"valence\" = ?, ai = ? WHERE id = ?")) {
             statement.setObject(1, song.getNombre());
             statement.setObject(2, song.getArtistas());
             statement.setObject(3, song.getAlbum());
@@ -222,7 +232,8 @@ public class MusicDatabase {
             statement.setObject(16, song.getSpeechiness());
             statement.setObject(17, song.getTempo());
             statement.setObject(18, song.getValence());
-            statement.setObject(19, song.getId());
+            statement.setBoolean(19, song.isAi());
+            statement.setObject(20, song.getId());
             return statement.executeUpdate() > 0;
         }
     }

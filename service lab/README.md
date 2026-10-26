@@ -50,7 +50,7 @@ La migración de este equipo conserva las canciones de la base anterior. Sus arc
 
 El token está en el archivo local **`.env`**, excluido de Git. Cuando expire, sustituye `SPOTIFY_ACCESS_TOKEN` y vuelve a pulsar Play. El token debe pertenecer a un usuario y tener el permiso **`user-top-read`**; introduce solo su valor, sin `Bearer`.
 
-La aplicación carga `.env` desde esta carpeta o desde `service lab/.env` al ejecutarla desde la raíz. Las variables de entorno reales del proceso tienen prioridad. El inicio de sesión opcional permite obtener un token desde el navegador; todavía no se guardan usuarios ni se renuevan tokens automáticamente.
+La aplicación carga `.env` desde esta carpeta o desde `service lab/.env` al ejecutarla desde la raíz. Las variables de entorno reales del proceso tienen prioridad. El inicio de sesión opcional permite obtener un token desde el navegador; guarda o actualiza el perfil del usuario en SQLite; los tokens no se renuevan automáticamente.
 
 Para una instalación nueva:
 
@@ -103,7 +103,10 @@ El `.env` está excluido de Git; `.env.example` contiene solo un marcador del se
 
 `login()` crea el enlace y un valor aleatorio `state` guardado en la sesión del navegador.
 `callback()` comprueba ese valor (válido diez minutos y un solo uso) y cambia el código
-por un token. La contraseña se escribe exclusivamente en Spotify. Si rechazas el permiso,
+por un token. Después consulta `/me` y guarda el ID de Spotify y el nombre visible
+en la tabla `users`, creada automáticamente al arrancar si no existe. Cada login
+actualiza el perfil y `updated_at` sin duplicar la cuenta. Si falla la consulta del
+perfil, no se guarda el usuario. La contraseña se escribe exclusivamente en Spotify. Si rechazas el permiso,
 el código caduca o falla la petición, vuelve a abrir `/spotify/login`.
 
 Esta versión muestra un token privado en el navegador para copiarlo manualmente;
