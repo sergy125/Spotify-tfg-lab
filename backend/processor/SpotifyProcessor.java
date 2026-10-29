@@ -6,6 +6,7 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import database.MusicDatabase;
+import models.Artist;
 import models.Event;
 import models.Song;
 import models.User;
@@ -16,6 +17,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.HashSet;
+import java.util.Set;
 
 public class SpotifyProcessor {
     private final MusicDatabase database;
@@ -66,6 +69,37 @@ public class SpotifyProcessor {
         database.deleteTopShort(userId);
         for (int i = 0; i < songs.size(); i++) {
             database.createTopShort(userId, i + 1, songs.get(i).getId());
+        }
+    }
+
+    public void addArtistTopShort(String json, String userId) throws SQLException, IOException {
+        database.replaceArtistTopShort(userId, parseArtists(json));
+    }
+
+    public void addArtistTopMedium(String json, String userId) throws SQLException, IOException {
+        database.replaceArtistTopMedium(userId, parseArtists(json));
+    }
+
+    public void addArtistTopLong(String json, String userId) throws SQLException, IOException {
+        database.replaceArtistTopLong(userId, parseArtists(json));
+    }
+
+    private List<Artist> parseArtists(String json) throws IOException {
+        try {
+            JsonArray items = JsonParser.parseString(json).getAsJsonObject().getAsJsonArray("items");
+            List<Artist> artists = new ArrayList<>();
+            Set<String> ids = new HashSet<>();
+            for (JsonElement item : items) {
+                JsonObject artist = item.getAsJsonObject();
+                String id = getString(artist, "id");
+                String name = getString(artist, "name");
+                if (id == null || id.isBlank() || name == null || name.isBlank() || !ids.add(id))
+                    throw new IllegalArgumentException();
+                artists.add(new Artist(id, name, getString(artist, "href")));
+            }
+            return artists;
+        } catch (RuntimeException ex) {
+            throw new IOException("Spotify devolvió un top de artistas no válido; se conserva el top anterior.");
         }
     }
 

@@ -12,6 +12,7 @@ import java.util.*;
 
 /** Estimaciones de Gemini en grupos de 20; solo completa las features vacías. */
 public class IAfeatures {
+    private final HttpClient client = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(20)).build();
     private static final String MODEL = "gemini-3.5-flash-lite";
     private static final String[] FIELDS = {"acousticness", "danceability", "energy",
             "instrumentalness", "key", "liveness", "loudness", "mode", "speechiness", "tempo", "valence", "popularity"};
@@ -67,7 +68,7 @@ public class IAfeatures {
         }
     }
 
-    private String loadApiKey() throws IOException {
+    String loadApiKey() throws IOException {
         Path path = Files.isDirectory(Path.of("backend", "audiofeatures"))
                 ? Path.of("backend", "gemini.properties") : Path.of("gemini.properties");
         Properties config = new Properties();
@@ -86,8 +87,17 @@ public class IAfeatures {
                         "https://generativelanguage.googleapis.com/v1beta/models/" + MODEL + ":generateContent"))
                 .header("x-goog-api-key", loadApiKey()).header("Content-Type", "application/json")
                 .timeout(Duration.ofSeconds(90)).POST(HttpRequest.BodyPublishers.ofString(body.toString())).build();
-        HttpClient client = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(20)).build();
-        HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+        HttpResponse<String> response;
+        long fallbackSeconds = 5;
+        while (true) {
+            response = send(request);
+            if (response.statusCode() != 429) break;
+            Duration delay = RetryDelay.fromHeader(response.headers().firstValue("Retry-After").orElse(""), fallbackSeconds);
+            System.out.println("Gemini ha limitado las peticiones (HTTP 429). Esperando "
+                    + delay.toSeconds() + " segundos antes de reintentar el mismo grupo de canciones...");
+            pause(delay);
+            fallbackSeconds = Math.min(fallbackSeconds * 2, 60);
+        }
         if (response.statusCode() != 200) throw new IOException("Gemini respondió HTTP " + response.statusCode()
                 + ". Revisa la clave, el modelo y la cuota.");
         try {
@@ -104,6 +114,14 @@ public class IAfeatures {
         } catch (RuntimeException ex) {
             throw new IOException("Gemini no devolvió un JSON completo.");
         }
+    }
+
+    HttpResponse<String> send(HttpRequest request) throws IOException, InterruptedException {
+        return client.send(request, HttpResponse.BodyHandlers.ofString());
+    }
+
+    void pause(Duration delay) throws InterruptedException {
+        Thread.sleep(delay);
     }
 
     private JsonObject schema() {

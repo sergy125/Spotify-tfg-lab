@@ -61,5 +61,8 @@ __pycache__/
 # Configuración local con credenciales de Spotify
 /.run/Backend Main.run.xml
 
-# Clave local de Gemini
-/backend/gemini.properties
+# Claves locales de Gemini, incluidas las copias generadas
+gemini.properties
+
+# Salida de compilación del IDE
+/out/

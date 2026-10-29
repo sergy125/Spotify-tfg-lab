@@ -37,7 +37,19 @@ public class SpotifyClient {
         return get("/me/top/tracks?time_range=short_term&limit=50");
     }
 
-    private String get(String endpoint) throws IOException, InterruptedException {
+    public String getArtistTopShort() throws IOException, InterruptedException {
+        return get("/me/top/artists?time_range=short_term&limit=50");
+    }
+
+    public String getArtistTopMedium() throws IOException, InterruptedException {
+        return get("/me/top/artists?time_range=medium_term&limit=50");
+    }
+
+    public String getArtistTopLong() throws IOException, InterruptedException {
+        return get("/me/top/artists?time_range=long_term&limit=50");
+    }
+
+    protected String get(String endpoint) throws IOException, InterruptedException {
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create("https://api.spotify.com/v1" + endpoint))
                 .header("Authorization", "Bearer " + token)

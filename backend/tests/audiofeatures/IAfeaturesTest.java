@@ -46,6 +46,18 @@ public class IAfeaturesTest {
     }
     static Song song(String id) { Song song = new Song(); song.setId(id); return song; }
     public static void main(String[] args) throws Exception {
+        // La búsqueda usa Spotify ID; la consulta de features usa el ID de ReccoBeats.
+        List<String> endpoints = new ArrayList<>();
+        ReccoBeats byId = new ReccoBeats() {
+            JsonObject get(String endpoint) {
+                endpoints.add(endpoint);
+                return endpoint.contains("audio-features") ? null
+                        : JsonParser.parseString("{\"content\":[{\"id\":\"recco-uuid\"}]}").getAsJsonObject();
+            }
+        };
+        Song byIdSong = song("spotify-id"); byIdSong.setNombre("Título que no se debe buscar");
+        assert !byId.findFeatures(byIdSong);
+        assert endpoints.equals(List.of("/track?ids=spotify-id", "/track/recco-uuid/audio-features"));
         FakeIA ai = new FakeIA();
         List<Song> songs = new ArrayList<>();
         for (int i = 0; i < 41; i++) songs.add(song("song-" + i));
@@ -74,6 +86,8 @@ public class IAfeaturesTest {
                         : "{\"content\":[{\"id\":\"found-recco\",\"popularity\":72}]}").getAsJsonObject();
             }
         };
+        // Las features previas de IA no deben hacer pasar una respuesta ausente por válida.
+        assert !recco.findFeatures(songs.get(0));
         Song found = song("found"); Song absent = song("absent");
         new Features(recco, fallback).addFeatures(List.of(found, absent));
         assert fallback.calls == 1;

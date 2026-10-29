@@ -1,5 +1,6 @@
 package database;
 
+import models.Artist;
 import models.Event;
 import models.Song;
 import models.User;
@@ -13,6 +14,8 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.Optional;
+import java.util.ArrayList;
+import java.util.List;
 
 /** SQLite access. Requires the org.xerial SQLite JDBC driver at runtime. */
 public class MusicDatabase {
@@ -41,6 +44,9 @@ public class MusicDatabase {
     }
 
     public void deleteAllTables() throws SQLException {
+        execute("DROP TABLE IF EXISTS artist_top_short");
+        execute("DROP TABLE IF EXISTS artist_top_medium");
+        execute("DROP TABLE IF EXISTS artist_top_long");
         execute("DROP TABLE IF EXISTS Historial");
         execute("DROP TABLE IF EXISTS top_short");
         execute("DROP TABLE IF EXISTS top_medium");
@@ -56,6 +62,9 @@ public class MusicDatabase {
         createTopShortTable();
         createTopMediumTable();
         createTopLongTable();
+        createArtistTopShortTable();
+        createArtistTopMediumTable();
+        createArtistTopLongTable();
     }
 
     private void execute(String sql) throws SQLException {
@@ -83,6 +92,16 @@ public class MusicDatabase {
             statement.setString(5, user.getAuthorizedAt());
             statement.executeUpdate();
         }
+    }
+
+    public List<String> listUsers() throws SQLException {
+        List<String> users = new ArrayList<>();
+        try (Connection connection = connect();
+             PreparedStatement statement = connection.prepareStatement("SELECT user_id FROM Users ORDER BY user_id");
+             ResultSet result = statement.executeQuery()) {
+            while (result.next()) users.add(result.getString("user_id"));
+        }
+        return users;
     }
 
     public Optional<User> getUser(String userId) throws SQLException {
@@ -147,6 +166,63 @@ public class MusicDatabase {
         execute("CREATE TABLE IF NOT EXISTS top_long (user_id TEXT NOT NULL, position INTEGER NOT NULL CHECK (position > 0), song_id TEXT NOT NULL REFERENCES Songs(id), PRIMARY KEY (user_id, position))");
     }
 
+    public void createArtistTopShortTable() throws SQLException {
+        createArtistTopTable("artist_top_short");
+    }
+
+    public void createArtistTopMediumTable() throws SQLException {
+        createArtistTopTable("artist_top_medium");
+    }
+
+    public void createArtistTopLongTable() throws SQLException {
+        createArtistTopTable("artist_top_long");
+    }
+
+    private void createArtistTopTable(String table) throws SQLException {
+        execute("CREATE TABLE IF NOT EXISTS " + table + " (user_id TEXT NOT NULL, "
+                + "position INTEGER NOT NULL CHECK (position > 0), artist_id TEXT NOT NULL, "
+                + "nombre TEXT NOT NULL, href TEXT, PRIMARY KEY (user_id, position), UNIQUE (user_id, artist_id))");
+    }
+
+    public void replaceArtistTopShort(String userId, List<Artist> artists) throws SQLException {
+        replaceArtistTop("artist_top_short", userId, artists);
+    }
+
+    public void replaceArtistTopMedium(String userId, List<Artist> artists) throws SQLException {
+        replaceArtistTop("artist_top_medium", userId, artists);
+    }
+
+    public void replaceArtistTopLong(String userId, List<Artist> artists) throws SQLException {
+        replaceArtistTop("artist_top_long", userId, artists);
+    }
+
+    // Nombres de tabla internos. Se sustituye solo el top del usuario en una transacción.
+    private void replaceArtistTop(String table, String userId, List<Artist> artists) throws SQLException {
+        try (Connection connection = connect()) {
+            connection.setAutoCommit(false);
+            try (PreparedStatement delete = connection.prepareStatement("DELETE FROM " + table + " WHERE user_id = ?");
+                 PreparedStatement insert = connection.prepareStatement("INSERT INTO " + table
+                         + " (user_id, position, artist_id, nombre, href) VALUES (?, ?, ?, ?, ?)")) {
+                delete.setString(1, userId);
+                delete.executeUpdate();
+                for (int i = 0; i < artists.size(); i++) {
+                    Artist artist = artists.get(i);
+                    insert.setString(1, userId);
+                    insert.setInt(2, i + 1);
+                    insert.setString(3, artist.id());
+                    insert.setString(4, artist.nombre());
+                    insert.setString(5, artist.href());
+                    insert.addBatch();
+                }
+                insert.executeBatch();
+                connection.commit();
+            } catch (SQLException | RuntimeException ex) {
+                connection.rollback();
+                throw ex;
+            }
+        }
+    }
+
     public void createSong(Song song) throws SQLException {
         try (Connection connection = connect();
              PreparedStatement statement = connection.prepareStatement("INSERT INTO Songs (\"id\", \"nombre\", \"artistas\", \"album\", \"duracionMs\", \"popularidad\", \"href\", \"isrc\", \"acousticness\", \"danceability\", \"energy\", \"instrumentalness\", \"key\", \"liveness\", \"loudness\", \"mode\", \"speechiness\", \"tempo\", \"valence\", ai) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")) {
@@ -172,6 +248,16 @@ public class MusicDatabase {
             statement.setBoolean(20, song.isAi());
             statement.executeUpdate();
         }
+    }
+
+    public List<String> listAiSongIds() throws SQLException {
+        List<String> ids = new ArrayList<>();
+        try (Connection connection = connect();
+             PreparedStatement statement = connection.prepareStatement("SELECT id FROM Songs WHERE ai = 1 ORDER BY id");
+             ResultSet result = statement.executeQuery()) {
+            while (result.next()) ids.add(result.getString("id"));
+        }
+        return ids;
     }
 
     public Optional<Song> getSong(String songId) throws SQLException {

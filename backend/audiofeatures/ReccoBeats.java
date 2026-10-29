@@ -39,7 +39,7 @@ public class ReccoBeats {
         // Audio features require the ReccoBeats ID, not the Spotify ID.
         String reccoId = track.get("id").getAsString();
         JsonObject features = get("/track/" + reccoId + "/audio-features");
-        if (features == null) return !song.hasMissingFeatures();
+        if (features == null) return false;
 
         song.setAcousticness(getDouble(features, "acousticness"));
         song.setDanceability(getDouble(features, "danceability"));
@@ -63,12 +63,30 @@ public class ReccoBeats {
                 .timeout(Duration.ofSeconds(30))
                 .GET().build();
 
-        HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+        HttpResponse<String> response;
+        long fallbackSeconds = 5;
+        while (true) {
+            response = send(request);
+            if (response.statusCode() != 429) break;
+            Duration delay = RetryDelay.fromHeader(response.headers().firstValue("Retry-After").orElse(""), fallbackSeconds);
+            System.out.println("ReccoBeats ha limitado las peticiones (HTTP 429). Esperando "
+                    + delay.toSeconds() + " segundos antes de reintentar la misma consulta...");
+            pause(delay);
+            fallbackSeconds = Math.min(fallbackSeconds * 2, 60);
+        }
         if (response.statusCode() == 404) return null;
         if (response.statusCode() != 200) {
             throw new IOException("ReccoBeats request failed: HTTP " + response.statusCode());
         }
         return JsonParser.parseString(response.body()).getAsJsonObject();
+    }
+
+    HttpResponse<String> send(HttpRequest request) throws IOException, InterruptedException {
+        return client.send(request, HttpResponse.BodyHandlers.ofString());
+    }
+
+    void pause(Duration delay) throws InterruptedException {
+        Thread.sleep(delay);
     }
 
     private Double getDouble(JsonObject object, String field) {
