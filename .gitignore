@@ -66,3 +66,6 @@ gemini.properties
 
 # Salida de compilación del IDE
 /out/
+
+# Herramientas locales del backend
+/backend/.local/

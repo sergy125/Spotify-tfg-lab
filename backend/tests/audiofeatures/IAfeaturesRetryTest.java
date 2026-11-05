@@ -79,6 +79,20 @@ public class IAfeaturesRetryTest {
         FakeIA cancelled = new FakeIA(); cancelled.interrupt = true; cancelled.responses.add(response(429, null, ""));
         try { cancelled.request(new JsonObject()); throw new AssertionError(); }
         catch (InterruptedException expected) { assert cancelled.requests.size() == 1; }
+        FakeIA unavailable = new FakeIA();
+        unavailable.responses.add(response(503, "2", ""));
+        unavailable.responses.add(response(503, null, ""));
+        unavailable.responses.add(response(200, null, "[]"));
+        assert unavailable.request(new JsonObject()).equals("[]");
+        assert unavailable.waits.equals(List.of(Duration.ofSeconds(2), Duration.ofSeconds(10)));
+        assert unavailable.requests.stream().allMatch(request -> request == unavailable.requests.get(0));
+        FakeIA exhausted = new FakeIA();
+        for (int i = 0; i < 4; i++) exhausted.responses.add(response(503, null, ""));
+        try { exhausted.request(new JsonObject()); throw new AssertionError(); }
+        catch (IOException expected) {
+            assert expected.getMessage().contains("503");
+            assert exhausted.requests.size() == 4 && exhausted.waits.size() == 3;
+        }
         System.out.println("PASS: Gemini retries same batch, preserves previous batches, parses features after retry, waits progressively, respects Retry-After, stops on interruption/403.");
     }
 }

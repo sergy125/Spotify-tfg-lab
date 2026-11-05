@@ -22,40 +22,56 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
-/** Inicio de sesión local y almacenamiento del usuario mediante MusicDatabase. */
+/** Inicio de sesión con callback local o mediante proxy HTTPS y almacenamiento en SQLite. */
 public class SpotifyLogin {
     private final SpotifyAuth auth;
     private final MusicDatabase database;
+    private final int callbackPort;
 
     public SpotifyLogin(SpotifyAuth auth, MusicDatabase database) {
+        this(auth, database, Integer.parseInt(System.getenv().getOrDefault("SPOTIFY_CALLBACK_PORT",
+                String.valueOf(auth != null && "http".equals(auth.getRedirectUri().getScheme())
+                        ? auth.getRedirectUri().getPort() : 8888))));
+    }
+
+    public SpotifyLogin(SpotifyAuth auth, MusicDatabase database, int callbackPort) {
+        if (callbackPort < 1 || callbackPort > 65535) {
+            throw new IllegalArgumentException("SPOTIFY_CALLBACK_PORT debe estar entre 1 y 65535.");
+        }
         this.auth = auth;
         this.database = database;
+        this.callbackPort = callbackPort;
     }
 
     public User login() throws IOException, InterruptedException, SQLException {
         URI redirect = auth.getRedirectUri();
         String state = UUID.randomUUID().toString();
-        var result = new CompletableFuture<String>();
-        HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", redirect.getPort()), 0);
+        var result = new CompletableFuture<User>();
+        // El túnel termina HTTPS y reenvía únicamente a este puerto local.
+        HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", callbackPort), 0);
         server.createContext(redirect.getPath(), exchange -> handleCallback(exchange, redirect, state, result));
         server.start();
         try {
             URI authorization = auth.getAuthorizationUri(state);
-            System.out.println("Inicia sesión en Spotify. Si el navegador no se abre, visita:");
+            boolean publicLogin = "https".equals(redirect.getScheme());
+            System.out.println(publicLogin ? "Envía este enlace al dispositivo que va a iniciar sesión:"
+                    : "Inicia sesión en Spotify. Si el navegador no se abre, visita:");
             System.out.println(authorization);
+            if ("https".equals(redirect.getScheme())) {
+                System.out.println("Puedes enviar este enlace a otro dispositivo. Mantén el túnel HTTPS abierto.");
+            } else {
+                System.out.println("Modo local: este enlace solo funciona en este ordenador. "
+                        + "Configura SPOTIFY_REDIRECT_URI con una URL HTTPS pública para usar un móvil.");
+            }
             try {
-                if (Desktop.isDesktopSupported() && Desktop.getDesktop().isSupported(Desktop.Action.BROWSE)) {
+                if (!publicLogin && Desktop.isDesktopSupported()
+                        && Desktop.getDesktop().isSupported(Desktop.Action.BROWSE)) {
                     Desktop.getDesktop().browse(authorization);
                 }
             } catch (IOException | UnsupportedOperationException | SecurityException ex) {
                 System.out.println("Abre el enlace anterior manualmente.");
             }
-            String code = result.get(3, TimeUnit.MINUTES);
-            User user = auth.exchangeCode(code);
-            database.createUsersTable();
-            if (database.getUser(user.getUserId()).isPresent()) database.updateUser(user);
-            else database.createUser(user);
-            return user;
+            return result.get(10, TimeUnit.MINUTES);
         } catch (TimeoutException ex) {
             throw new IOException("Tiempo de inicio de sesión agotado. Vuelve a intentarlo.");
         } catch (ExecutionException ex) {
@@ -85,7 +101,9 @@ public class SpotifyLogin {
     }
 
     private void handleCallback(HttpExchange exchange, URI redirect, String state,
-                                CompletableFuture<String> result) throws IOException {
+                                CompletableFuture<User> result) throws IOException {
+        User savedUser = null;
+        Exception failure = null;
         int status = 400;
         String message = "Respuesta no válida. Vuelve al enlace de inicio de sesión.";
         try {
@@ -94,15 +112,23 @@ public class SpotifyLogin {
                 Map<String, String> query = parseQuery(exchange.getRequestURI().getRawQuery());
                 if (state.equals(query.get("state")) && !result.isDone()) {
                     if (query.containsKey("error")) {
-                        result.completeExceptionally(new IOException("Autorización rechazada."));
+                        failure = new IOException("Autorización rechazada.");
                         message = "Acceso rechazado. Puedes volver al programa.";
                     } else if (query.containsKey("code") && !query.get("code").isBlank()) {
-                        result.complete(query.get("code"));
+                        savedUser = auth.exchangeCode(query.get("code"));
+                        database.createUsersTable();
+                        if (database.getUser(savedUser.getUserId()).isPresent()) database.updateUser(savedUser);
+                        else database.createUser(savedUser);
                         status = 200;
-                        message = "Autorización recibida. Vuelve al programa para ver el resultado.";
+                        message = "Cuenta conectada y guardada en el backend. Ya puedes cerrar esta página.";
                     }
                 }
             }
+        } catch (IOException | SQLException | InterruptedException ex) {
+            if (ex instanceof InterruptedException) Thread.currentThread().interrupt();
+            failure = ex;
+            status = 502;
+            message = "No se pudo guardar la cuenta. Vuelve a iniciar sesión desde el backend.";
         } catch (IllegalArgumentException ex) {
             // Una URL mal formada no debe interrumpir la espera del usuario.
         }
@@ -115,6 +141,8 @@ public class SpotifyLogin {
             output.write(body);
         } finally {
             exchange.close();
+            if (failure != null) result.completeExceptionally(failure);
+            else if (savedUser != null) result.complete(savedUser);
         }
     }
 

@@ -14,6 +14,58 @@ Copia `gemini.properties.example` como `gemini.properties` y sustituye el valor 
 por tu clave. No necesitas variables de entorno para Gemini.
 El modelo se define mediante `MODEL` en `audiofeatures/IAfeatures.java`.
 
+## Conectar una cuenta desde otro móvil u ordenador
+
+El menú «Conectar un nuevo Spotify» acepta un callback público HTTPS. La cuenta
+se guarda en la tabla `Users` de este backend, con sus tokens, y el menú continúa
+con el usuario conectado. El navegador confirma el éxito después de guardar en SQLite;
+no muestra los tokens. Cada opción de conectar permite autorizar una cuenta durante
+diez minutos; para conectar otra, vuelve a elegir esa opción.
+
+1. Instala `cloudflared` y, en otra terminal, ejecuta:
+
+   ```sh
+   cloudflared tunnel --url http://127.0.0.1:8888
+   ```
+
+2. Copia la URL HTTPS que muestra, por ejemplo `https://ejemplo.trycloudflare.com`.
+   En Spotify Developer Dashboard → tu aplicación → Settings → Redirect URIs,
+   añade **exactamente** `https://ejemplo.trycloudflare.com/callback` y guarda.
+3. En las variables de ejecución de **Backend Main** en IntelliJ cambia
+   `SPOTIFY_REDIRECT_URI` a esa misma URL completa con `/callback`.
+   Configura `SPOTIFY_CALLBACK_PORT=8888` (es el puerto local por defecto para HTTPS).
+   En terminal, exporta esas variables antes de ejecutar `Main`.
+4. Arranca el backend, elige conectar un nuevo Spotify y envía a la otra persona
+   el enlace de autorización que imprime la consola. Ese enlace sí se puede abrir
+   desde otro dispositivo: el `state` se comprueba en el backend sin depender de
+   cookies del navegador original. Usa el enlace recién generado una sola vez.
+5. Mantén el backend y el túnel abiertos hasta que el móvil confirme que la cuenta
+   se ha guardado y tu consola muestre `Usuario conectado`.
+
+Si reinicias un túnel temporal y cambia su URL, actualiza tanto Spotify como
+`SPOTIFY_REDIRECT_URI` y reinicia el backend. Un dominio fijo con proxy HTTPS evita
+ese cambio. El proxy debe reenviar el path y los parámetros del callback sin modificarlos
+al puerto `SPOTIFY_CALLBACK_PORT` del ordenador del backend. No necesitas abrir
+puertos del router para el túnel.
+
+Spotify exige HTTPS para callbacks públicos. En modo Development, las cuentas
+tienen que estar autorizadas en User Management del panel de Spotify; publicar el
+callback no elimina esa restricción de Spotify.
+
+Sin túnel puedes seguir usando `http://127.0.0.1:8888/callback`, pero solo desde
+el ordenador donde ejecutas el backend.
+
+Referencias: [redirect URIs de Spotify](https://developer.spotify.com/documentation/web-api/concepts/redirect_uri)
+y [restricciones de Development Mode](https://developer.spotify.com/documentation/web-api/concepts/quota-modes).
+
+Prueba del callback con Spotify simulado y SQLite temporal (incluye estado incorrecto,
+guardado de tokens sin exponerlos en la respuesta y rechazo de callbacks repetidos):
+
+```sh
+javac -cp '/tmp/spotify-backend-classes:lib/*' -d /tmp/spotify-backend-classes tests/spotify/SpotifyRemoteLoginTest.java
+java --enable-native-access=ALL-UNNAMED -ea -cp '/tmp/spotify-backend-classes:lib/*' spotify.SpotifyRemoteLoginTest
+```
+
 ReccoBeats se consulta primero. Solo las canciones cuyas audiofeatures siguen incompletas tras consultar ReccoBeats
 pasan a `IAfeatures`, en grupos de hasta 20 canciones distintas por petición. Esto incluye
 canciones encontradas sin audiofeatures o con campos nulos. Si devuelve todas las audiofeatures,
@@ -32,6 +84,9 @@ Una respuesta nula, incompleta o con números fuera de rango se rechaza: no se g
 vacías ni se ponen valores inventados localmente para ocultar errores de la API. Los errores de
 clave o conexión impiden completar la importación; se puede reintentar después. Los límites
 HTTP 429 se gestionan automáticamente con esperas y reintentos.
+Si Gemini devuelve HTTP 503 (servicio temporalmente no disponible), se reintenta el
+mismo grupo hasta tres veces, respetando `Retry-After` o esperando 5, 10 y 20 segundos.
+Si continúa fallando, se informa de la indisponibilidad y se puede reintentar más tarde.
 
 Pruebas sin red ni consumo de créditos, después de compilar:
 

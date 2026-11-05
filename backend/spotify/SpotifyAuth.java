@@ -38,11 +38,15 @@ public class SpotifyAuth {
             throw new IllegalArgumentException("Configura SPOTIFY_CLIENT_ID y SPOTIFY_CLIENT_SECRET.");
         }
         this.redirectUri = URI.create(redirectUri);
-        if (!"http".equals(this.redirectUri.getScheme()) || !"127.0.0.1".equals(this.redirectUri.getHost())
-                || this.redirectUri.getPort() < 1 || this.redirectUri.getPath().isBlank()
+        boolean local = "http".equals(this.redirectUri.getScheme())
+                && "127.0.0.1".equals(this.redirectUri.getHost()) && this.redirectUri.getPort() > 0;
+        boolean publicHttps = "https".equals(this.redirectUri.getScheme())
+                && this.redirectUri.getHost() != null;
+        if ((!local && !publicHttps) || this.redirectUri.getPort() == 0 || this.redirectUri.getPath().isBlank()
                 || this.redirectUri.getRawQuery() != null || this.redirectUri.getFragment() != null
                 || this.redirectUri.getUserInfo() != null) {
-            throw new IllegalArgumentException("Usa una URI local como http://127.0.0.1:8888/callback.");
+            throw new IllegalArgumentException("Usa https://tu-dominio/callback para otros dispositivos "
+                    + "o http://127.0.0.1:8888/callback para el mismo ordenador.");
         }
         this.clientId = clientId.trim();
         this.clientSecret = clientSecret.trim();

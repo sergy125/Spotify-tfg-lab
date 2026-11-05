@@ -107,6 +107,7 @@ public class BackendConsole {
                     update(choice, userId, processor);
                 }
             } catch (IOException | SQLException ex) {
+                System.out.println("Motivo del fallo de actualización: " + ex.getMessage());
                 System.out.println("No se pudo completar la actualización. Las tablas anteriores que "
                         + "se hayan confirmado como actualizadas se conservan. Puedes reintentar o "
                         + "volver a las cuentas y autorizar Spotify de nuevo.");

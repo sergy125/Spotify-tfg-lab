@@ -89,11 +89,18 @@ public class IAfeatures {
                 .timeout(Duration.ofSeconds(90)).POST(HttpRequest.BodyPublishers.ofString(body.toString())).build();
         HttpResponse<String> response;
         long fallbackSeconds = 5;
+        int unavailableRetries = 0;
         while (true) {
             response = send(request);
-            if (response.statusCode() != 429) break;
+            boolean unavailable = response.statusCode() == 503;
+            if (response.statusCode() != 429 && !unavailable) break;
+            if (unavailable && unavailableRetries++ >= 3) {
+                throw new IOException("Gemini sigue temporalmente no disponible (HTTP 503) tras 3 reintentos. "
+                        + "Vuelve a intentar la actualización más tarde.");
+            }
             Duration delay = RetryDelay.fromHeader(response.headers().firstValue("Retry-After").orElse(""), fallbackSeconds);
-            System.out.println("Gemini ha limitado las peticiones (HTTP 429). Esperando "
+            System.out.println((unavailable ? "Gemini está temporalmente no disponible (HTTP 503). Esperando "
+                    : "Gemini ha limitado las peticiones (HTTP 429). Esperando ")
                     + delay.toSeconds() + " segundos antes de reintentar el mismo grupo de canciones...");
             pause(delay);
             fallbackSeconds = Math.min(fallbackSeconds * 2, 60);
