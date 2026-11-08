@@ -4,15 +4,26 @@ Ejecutar desde `backend/`, con un JDK 21 o superior:
 
 ```sh
 mkdir -p /tmp/spotify-backend-classes
-javac -cp 'lib/*' -d /tmp/spotify-backend-classes Main.java BackendConsole.java models/*.java database/*.java spotify/*.java processor/*.java audiofeatures/*.java
+javac -cp 'lib/*' -d /tmp/spotify-backend-classes Main.java BackendConsole.java models/*.java database/*.java spotify/*.java processor/*.java audiofeatures/*.java statistics/*.java
 java --enable-native-access=ALL-UNNAMED -cp '/tmp/spotify-backend-classes:lib/*' Main
 ```
 
 Configura `SPOTIFY_CLIENT_ID` y `SPOTIFY_CLIENT_SECRET` en el entorno de ejecución.
-La clave de Gemini se guarda en `backend/gemini.properties`, un archivo local ignorado por Git.
-Copia `gemini.properties.example` como `gemini.properties` y sustituye el valor de `api.key`
-por tu clave. No necesitas variables de entorno para Gemini.
-El modelo se define mediante `MODEL` en `audiofeatures/IAfeatures.java`.
+El estimador activo es **Ollama local con `qwen3:1.7b`**. Antes de importar, abre
+Ollama o ejecuta `ollama serve` y descarga el modelo una vez con `ollama pull qwen3:1.7b`.
+`audiofeatures/OllamaFeatures.java` es una copia independiente adaptada de la clase de
+Gemini. `audiofeatures/IAfeatures.java` se conserva sin cambios y no está conectada al
+flujo de sincronización; no se consulta Gemini ni se necesita su clave.
+
+Variables opcionales (también configurables en Backend Main de IntelliJ):
+
+| Variable | Por defecto | Uso |
+| --- | --- | --- |
+| `OLLAMA_BASE_URL` | `http://127.0.0.1:11434` | Dirección del servidor Ollama |
+| `OLLAMA_MODEL` | `qwen3:1.7b` | Modelo instalado en ese servidor |
+
+Las estimaciones usan título, artista y álbum; no analizan el audio. El formato JSON
+se valida, pero eso no garantiza la precisión musical de los valores.
 
 ## Conectar una cuenta desde otro móvil u ordenador
 
@@ -67,10 +78,10 @@ java --enable-native-access=ALL-UNNAMED -ea -cp '/tmp/spotify-backend-classes:li
 ```
 
 ReccoBeats se consulta primero. Solo las canciones cuyas audiofeatures siguen incompletas tras consultar ReccoBeats
-pasan a `IAfeatures`, en grupos de hasta 20 canciones distintas por petición. Esto incluye
+pasan a `OllamaFeatures`, una canción por petición para limitar el consumo de memoria. Esto incluye
 canciones encontradas sin audiofeatures o con campos nulos. Si devuelve todas las audiofeatures,
 no se envían a IA aunque falte popularidad. Los errores de red tampoco activan IA.
-Gemini estima las once features y popularidad (entero 0..100), con JSON numérico sin nulos.
+Qwen3 estima las once features y popularidad (entero 0..100), con JSON numérico sin nulos.
 Solo se rellenan huecos; se conservan los valores existentes. Las canciones completas
 (features y popularidad) se reutilizan sin más peticiones. Las incompletas ya guardadas
 se procesan cuando vuelven a aparecer en el historial o los tops importados.
@@ -82,21 +93,20 @@ con false: no significa que ya tenga todas sus features.
 
 Una respuesta nula, incompleta o con números fuera de rango se rechaza: no se guardan estimaciones
 vacías ni se ponen valores inventados localmente para ocultar errores de la API. Los errores de
-clave o conexión impiden completar la importación; se puede reintentar después. Los límites
-HTTP 429 se gestionan automáticamente con esperas y reintentos.
-Si Gemini devuelve HTTP 503 (servicio temporalmente no disponible), se reintenta el
-mismo grupo hasta tres veces, respetando `Retry-After` o esperando 5, 10 y 20 segundos.
+conexión con Ollama impiden completar la importación; se puede reintentar después. Los límites
+HTTP 429 o 503 de Ollama se gestionan con hasta tres reintentos,
+respetando `Retry-After` o esperando 5, 10 y 20 segundos.
 Si continúa fallando, se informa de la indisponibilidad y se puede reintentar más tarde.
 
 Pruebas sin red ni consumo de créditos, después de compilar:
 
 ```sh
-javac -cp '/tmp/spotify-backend-classes:lib/*' -d /tmp/spotify-backend-classes tests/audiofeatures/IAfeaturesTest.java
-java --enable-native-access=ALL-UNNAMED -ea -cp '/tmp/spotify-backend-classes:lib/*' audiofeatures.IAfeaturesTest
+javac -cp '/tmp/spotify-backend-classes:lib/*' -d /tmp/spotify-backend-classes tests/audiofeatures/OllamaFeaturesTest.java
+java --enable-native-access=ALL-UNNAMED -ea -cp '/tmp/spotify-backend-classes:lib/*' audiofeatures.OllamaFeaturesTest
 ```
 
 En el menú inicial de cuentas, la opción «Buscar en ReccoBeats las features de canciones
-estimadas con IA» revisa todas las filas `ai=1` sin iniciar sesión en Spotify ni consultar Gemini.
+estimadas con IA» revisa todas las filas `ai=1` sin iniciar sesión en Spotify ni consultar Ollama.
 Solo guarda una canción si ReccoBeats devuelve las once audiofeatures completas; entonces
 sustituye las estimaciones, cambia `ai` a `0` y muestra su nombre. Si no hay features, la
 respuesta es parcial o falla la conexión, conserva todos sus datos y `ai=1`. Al final muestra
@@ -122,19 +132,31 @@ javac -cp '/tmp/spotify-backend-classes:lib/*' -d /tmp/spotify-backend-classes t
 java --enable-native-access=ALL-UNNAMED -ea -cp '/tmp/spotify-backend-classes:lib/*' audiofeatures.ReccoBeatsRetryTest
 ```
 
-La espera ante HTTP 429 se aplica también al importar muchas canciones: todas las consultas
-HTTP de ReccoBeats pasan por el mismo método. Gemini utiliza la misma interpretación de
-`Retry-After` y la misma espera progresiva de 5 a 60 segundos. Reintenta únicamente el grupo
-actual de hasta 20 canciones, sin volver a enviar los grupos ya completados. Durante la espera
-se muestra un mensaje; se puede cancelar la ejecución. Si el límite es diario, la espera puede
-prolongarse hasta que se restablezca la cuota. Los errores diferentes de 429 no se reintentan.
+Las consultas de ReccoBeats conservan sus reintentos ante HTTP 429.
+Ollama reintenta únicamente la petición actual hasta tres veces si recibe HTTP 429/503.
+Si está apagado o falta el modelo, se muestra un error concreto. Si la respuesta es inválida
+o se corta, se reintenta el grupo tras 1, 2 y 4 segundos. Si se agotan los intentos,
+la actualización sigue con los valores disponibles. Cada petición tiene un límite de cinco minutos.
 
-Prueba de Gemini sin red ni consumo de créditos:
+Pruebas de Ollama sin red ni esperas reales (después de compilar las clases):
 
 ```sh
-javac -cp '/tmp/spotify-backend-classes:lib/*' -d /tmp/spotify-backend-classes tests/audiofeatures/IAfeaturesRetryTest.java
-java --enable-native-access=ALL-UNNAMED -ea -cp '/tmp/spotify-backend-classes:lib/*' audiofeatures.IAfeaturesRetryTest
+javac -cp '/tmp/spotify-backend-classes:lib/*' -d /tmp/spotify-backend-classes tests/audiofeatures/OllamaFeaturesTest.java tests/audiofeatures/OllamaFeaturesRetryTest.java
+java --enable-native-access=ALL-UNNAMED -ea -cp '/tmp/spotify-backend-classes:lib/*' audiofeatures.OllamaFeaturesTest
+java --enable-native-access=ALL-UNNAMED -ea -cp '/tmp/spotify-backend-classes:lib/*' audiofeatures.OllamaFeaturesRetryTest
 ```
+
+Prueba opcional con Qwen3 real en Ollama y SQLite temporal, sin Spotify, ReccoBeats
+ni Gemini y sin modificar la base de datos del usuario:
+
+```sh
+javac -cp '/tmp/spotify-backend-classes:lib/*' -d /tmp/spotify-backend-classes tests/audiofeatures/OllamaFeaturesLiveTest.java
+java --enable-native-access=ALL-UNNAMED -ea -cp '/tmp/spotify-backend-classes:lib/*' audiofeatures.OllamaFeaturesLiveTest
+```
+
+Las pruebas `IAfeaturesTest`, `IAfeaturesMappingTest` e `IAfeaturesRetryTest` se
+conservan para la clase de Gemini desconectada. Su configuración antigua en
+`gemini.properties` solo se utiliza al ejecutar esa clase explícitamente.
 
 ## Tops de artistas
 

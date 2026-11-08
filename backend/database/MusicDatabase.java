@@ -16,6 +16,7 @@ import java.sql.Statement;
 import java.util.Optional;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.HashMap;
 
 /** SQLite access. Requires the org.xerial SQLite JDBC driver at runtime. */
 public class MusicDatabase {
@@ -271,30 +272,93 @@ public class MusicDatabase {
             statement.setString(1, songId);
             try (ResultSet result = statement.executeQuery()) {
                 if (!result.next()) return Optional.empty();
-                Song song = new Song();
-                song.setId(result.getString("id"));
-                song.setAi(result.getBoolean("ai"));
-                song.setNombre(result.getString("nombre"));
-                song.setArtistas(result.getString("artistas"));
-                song.setAlbum(result.getString("album"));
-                song.setDuracionMs(result.getObject("duracionMs") == null ? null : result.getInt("duracionMs"));
-                song.setPopularidad(result.getObject("popularidad") == null ? null : result.getInt("popularidad"));
-                song.setHref(result.getString("href"));
-                song.setIsrc(result.getString("isrc"));
-                song.setAcousticness(result.getObject("acousticness") == null ? null : result.getDouble("acousticness"));
-                song.setDanceability(result.getObject("danceability") == null ? null : result.getDouble("danceability"));
-                song.setEnergy(result.getObject("energy") == null ? null : result.getDouble("energy"));
-                song.setInstrumentalness(result.getObject("instrumentalness") == null ? null : result.getDouble("instrumentalness"));
-                song.setKey(result.getObject("key") == null ? null : result.getInt("key"));
-                song.setLiveness(result.getObject("liveness") == null ? null : result.getDouble("liveness"));
-                song.setLoudness(result.getObject("loudness") == null ? null : result.getDouble("loudness"));
-                song.setMode(result.getObject("mode") == null ? null : result.getInt("mode"));
-                song.setSpeechiness(result.getObject("speechiness") == null ? null : result.getDouble("speechiness"));
-                song.setTempo(result.getObject("tempo") == null ? null : result.getDouble("tempo"));
-                song.setValence(result.getObject("valence") == null ? null : result.getDouble("valence"));
-                return Optional.of(song);
+                return Optional.of(readSong(result));
             }
         }
+    }
+
+    private Song readSong(ResultSet result) throws SQLException {
+        Song song = new Song();
+        song.setId(result.getString("id"));
+        song.setAi(result.getBoolean("ai"));
+        song.setNombre(result.getString("nombre"));
+        song.setArtistas(result.getString("artistas"));
+        song.setAlbum(result.getString("album"));
+        song.setDuracionMs(result.getObject("duracionMs") == null ? null : result.getInt("duracionMs"));
+        song.setPopularidad(result.getObject("popularidad") == null ? null : result.getInt("popularidad"));
+        song.setHref(result.getString("href"));
+        song.setIsrc(result.getString("isrc"));
+        song.setAcousticness(result.getObject("acousticness") == null ? null : result.getDouble("acousticness"));
+        song.setDanceability(result.getObject("danceability") == null ? null : result.getDouble("danceability"));
+        song.setEnergy(result.getObject("energy") == null ? null : result.getDouble("energy"));
+        song.setInstrumentalness(result.getObject("instrumentalness") == null ? null : result.getDouble("instrumentalness"));
+        song.setKey(result.getObject("key") == null ? null : result.getInt("key"));
+        song.setLiveness(result.getObject("liveness") == null ? null : result.getDouble("liveness"));
+        song.setLoudness(result.getObject("loudness") == null ? null : result.getDouble("loudness"));
+        song.setMode(result.getObject("mode") == null ? null : result.getInt("mode"));
+        song.setSpeechiness(result.getObject("speechiness") == null ? null : result.getDouble("speechiness"));
+        song.setTempo(result.getObject("tempo") == null ? null : result.getDouble("tempo"));
+        song.setValence(result.getObject("valence") == null ? null : result.getDouble("valence"));
+        return song;
+    }
+
+    public enum TopPeriod {
+        SHORT_TERM("short"), MEDIUM_TERM("medium"), LONG_TERM("long");
+
+        private final String suffix;
+
+        TopPeriod(String suffix) {
+            this.suffix = suffix;
+        }
+    }
+
+    public HashMap<String, Song> getListeningHistory(String userId) throws SQLException {
+        HashMap<String, Song> history = new HashMap<>();
+        String sql = "SELECT h.played_at, s.* FROM Historial h JOIN Songs s ON s.id = h.song_id "
+                + "WHERE h.user_id = ? ORDER BY h.song_id";
+        try (Connection connection = connect();
+             PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setString(1, userId);
+            try (ResultSet result = statement.executeQuery()) {
+                while (result.next()) {
+                    history.putIfAbsent(result.getString("played_at"), readSong(result));
+                }
+            }
+        }
+        return history;
+    }
+
+    public HashMap<Integer, Song> getTopTracks(String userId, TopPeriod period) throws SQLException {
+        HashMap<Integer, Song> tracks = new HashMap<>();
+        String sql = "SELECT t.position, s.* FROM top_" + period.suffix
+                + " t JOIN Songs s ON s.id = t.song_id WHERE t.user_id = ?";
+        try (Connection connection = connect();
+             PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setString(1, userId);
+            try (ResultSet result = statement.executeQuery()) {
+                while (result.next()) {
+                    tracks.put(result.getInt("position"), readSong(result));
+                }
+            }
+        }
+        return tracks;
+    }
+
+    public HashMap<Integer, Artist> getTopArtists(String userId, TopPeriod period) throws SQLException {
+        HashMap<Integer, Artist> artists = new HashMap<>();
+        String sql = "SELECT position, artist_id, nombre, href FROM artist_top_" + period.suffix
+                + " WHERE user_id = ?";
+        try (Connection connection = connect();
+             PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setString(1, userId);
+            try (ResultSet result = statement.executeQuery()) {
+                while (result.next()) {
+                    artists.put(result.getInt("position"), new Artist(result.getString("artist_id"),
+                            result.getString("nombre"), result.getString("href")));
+                }
+            }
+        }
+        return artists;
     }
 
     public boolean updateSong(Song song) throws SQLException {

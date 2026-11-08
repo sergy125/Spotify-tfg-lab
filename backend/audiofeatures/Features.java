@@ -7,17 +7,18 @@ import java.util.ArrayList;
 
 public class Features {
     private final ReccoBeats reccoBeats;
-    private final IAfeatures ia;
+    private final OllamaFeatures ia;
 
-    public Features() { this(new ReccoBeats(), new IAfeatures()); }
+    public Features() { this(new ReccoBeats(), new OllamaFeatures()); }
 
-    Features(ReccoBeats reccoBeats, IAfeatures ia) {
+    Features(ReccoBeats reccoBeats, OllamaFeatures ia) {
         this.reccoBeats = reccoBeats;
         this.ia = ia;
     }
 
     public Song addFeatures(Song song) throws IOException, InterruptedException {
-        return reccoBeats.addFeatures(song);
+        addFeatures(List.of(song));
+        return song;
     }
 
     public void addFeatures(List<Song> songs) throws IOException, InterruptedException {

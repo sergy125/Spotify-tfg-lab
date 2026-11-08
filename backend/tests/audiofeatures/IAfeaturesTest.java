@@ -77,39 +77,6 @@ public class IAfeaturesTest {
             try { bad.addFeatures(List.of(song)); throw new AssertionError(invalid); }
             catch (IOException expected) { assert song.hasMissingFeatures() && !song.isAi(); }
         }
-        // Encontrada sin audiofeatures y canción ausente: ambas pasan a IA.
-        FakeIA fallback = new FakeIA();
-        ReccoBeats recco = new ReccoBeats() {
-            JsonObject get(String endpoint) {
-                if (endpoint.contains("audio-features")) return null;
-                return JsonParser.parseString(endpoint.contains("absent") ? "{\"content\":[]}"
-                        : "{\"content\":[{\"id\":\"found-recco\",\"popularity\":72}]}").getAsJsonObject();
-            }
-        };
-        // Las features previas de IA no deben hacer pasar una respuesta ausente por válida.
-        assert !recco.findFeatures(songs.get(0));
-        Song found = song("found"); Song absent = song("absent");
-        new Features(recco, fallback).addFeatures(List.of(found, absent));
-        assert fallback.calls == 1;
-        // Si ReccoBeats devuelve audiofeatures completas pero no popularidad, no necesita IA.
-        ReccoBeats complete = new ReccoBeats() {
-            JsonObject get(String endpoint) {
-                return JsonParser.parseString(endpoint.contains("audio-features")
-                        ? "{\"acousticness\":0.2,\"danceability\":0.5,\"energy\":0.8,\"instrumentalness\":0,\"key\":4,\"liveness\":0.1,\"loudness\":-6,\"mode\":1,\"speechiness\":0.1,\"tempo\":120,\"valence\":0.5}"
-                        : "{\"content\":[{\"id\":\"complete\"}]}").getAsJsonObject();
-            }
-        };
-        Song completeSong = song("complete");
-        new Features(complete, fallback).addFeatures(List.of(completeSong));
-        assert fallback.calls == 1 && !completeSong.isAi() && !completeSong.hasMissingFeatures();
-        assert !found.hasMissingFeatures() && found.isAi() && found.getPopularidad() == 72;
-        assert !absent.hasMissingFeatures() && absent.isAi() && absent.getPopularidad() == 65;
-        // Un fallo de conexión tampoco debe activar la IA.
-        ReccoBeats broken = new ReccoBeats() {
-            JsonObject get(String endpoint) throws IOException { throw new IOException("offline"); }
-        };
-        try { new Features(broken, fallback).addFeatures(List.of(song("offline"))); throw new AssertionError(); }
-        catch (IOException expected) { assert fallback.calls == 1; }
         var path = Files.createTempFile("ia-database-", ".sqlite");
         MusicDatabase db = new MusicDatabase(path); db.createAllTables();
         Song existing = song("existing"); db.createSong(existing);

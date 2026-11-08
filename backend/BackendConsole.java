@@ -1,4 +1,5 @@
 import database.MusicDatabase;
+import database.MusicDatabase.TopPeriod;
 import models.User;
 import models.Song;
 import audiofeatures.ReccoBeats;
@@ -6,10 +7,12 @@ import processor.SpotifyProcessor;
 import spotify.SpotifyAuth;
 import spotify.SpotifyClient;
 import spotify.SpotifyLogin;
+import statistics.UserStatistics;
 
 import java.io.IOException;
 import java.sql.SQLException;
 import java.util.List;
+import java.util.Locale;
 import java.util.Scanner;
 
 /** Menú de cuentas y actualización de datos del backend de terminal. */
@@ -92,17 +95,26 @@ public class BackendConsole {
 
     private void updateMenu(String userId) throws InterruptedException {
         SpotifyProcessor processor = new SpotifyProcessor(database);
+        UserStatistics statistics = null;
         while (true) {
             System.out.println("\n¿Qué tabla quieres actualizar para " + userId + "?");
             System.out.println("1. Historial\n2. top_short\n3. top_medium\n4. top_long"
                     + "\n5. Todas (historial, canciones y artistas)\n6. artist_top_short"
-                    + "\n7. artist_top_medium\n8. artist_top_long\n0. Volver a las cuentas");
+                    + "\n7. artist_top_medium\n8. artist_top_long\n9. Statistics\n0. Volver a las cuentas");
             System.out.println("Songs se completa automáticamente con las canciones nuevas.");
-            int choice = readOption(8);
+            int choice = readOption(9);
             if (choice == 0) return;
+            if (choice == 9) {
+                if (statistics == null) statistics = refreshStatistics(userId, null);
+                if (statistics != null) statisticsMenu(statistics);
+                continue;
+            }
+            UserStatistics previousStatistics = statistics;
+            statistics = null;
             try {
                 if (choice == 5) {
                     for (int table : new int[]{1, 2, 3, 4, 6, 7, 8}) update(table, userId, processor);
+                    statistics = refreshStatistics(userId, previousStatistics);
                 } else {
                     update(choice, userId, processor);
                 }
@@ -111,6 +123,43 @@ public class BackendConsole {
                 System.out.println("No se pudo completar la actualización. Las tablas anteriores que "
                         + "se hayan confirmado como actualizadas se conservan. Puedes reintentar o "
                         + "volver a las cuentas y autorizar Spotify de nuevo.");
+            }
+        }
+    }
+
+    private UserStatistics refreshStatistics(String userId, UserStatistics statistics) {
+        try {
+            if (statistics == null) return new UserStatistics(userId, database);
+            statistics.refreshAll();
+            return statistics;
+        } catch (SQLException ex) {
+            System.out.println("Could not load statistics data: " + ex.getMessage());
+            return null;
+        }
+    }
+
+    private void statisticsMenu(UserStatistics statistics) {
+        TopPeriod[] periods = TopPeriod.values();
+        while (true) {
+            System.out.println("\nStatistics");
+            System.out.println("1. Average Sadness — Listening History");
+            System.out.println("2. Average Sadness — Top Tracks, Short Term\n3. Average Sadness — Top Tracks, Medium Term\n4. Average Sadness — Top Tracks, Long Term");
+            System.out.println("5. Which Taylor Swift Era Are You?");
+            System.out.println("0. Back");
+            int choice = readOption(5, "Enter a number from 0 to 5.");
+            if (choice == 0) return;
+            if (choice == 5) {
+                System.out.println(statistics.closestTaylorSwiftEra()
+                        .map(era -> "You're in your " + era + " era!")
+                        .orElse("No plays with valid energy, valence, and acousticness data."));
+                continue;
+            }
+            var score = choice == 1 ? statistics.historySadness()
+                    : statistics.topTracksSadness(periods[choice - 2]);
+            if (score.isPresent()) {
+                System.out.printf(Locale.ROOT, "Average sadness: %.1f/10 (10 = saddest)%n", score.getAsDouble());
+            } else {
+                System.out.println("No matching tracks with valence data.");
             }
         }
     }
@@ -135,6 +184,10 @@ public class BackendConsole {
     }
 
     private int readOption(int maximum) {
+        return readOption(maximum, "Introduce un número entre 0 y " + maximum + ".");
+    }
+
+    private int readOption(int maximum, String invalidOptionMessage) {
         while (input.hasNextLine()) {
             String line = input.nextLine().trim();
             try {
@@ -143,7 +196,7 @@ public class BackendConsole {
             } catch (NumberFormatException ex) {
                 // Se vuelve a pedir la opción sin interrumpir el programa.
             }
-            System.out.println("Introduce un número entre 0 y " + maximum + ".");
+            System.out.println(invalidOptionMessage);
         }
         return 0;
     }
