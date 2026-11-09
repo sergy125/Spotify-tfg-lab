@@ -3,16 +3,11 @@ package statistics;
 import models.Song;
 
 import java.util.HashMap;
-import java.util.OptionalDouble;
 import java.util.Optional;
 import java.util.Comparator;
 import java.util.List;
 
 public record ListeningHistoryStatistics(HashMap<String, Song> songsByPlayedAt) {
-    public OptionalDouble averageSadness() {
-        return Sadness.averageScore(songsByPlayedAt.values().stream());
-    }
-
     public Optional<String> closestTaylorSwiftEra() {
         double energy = 0;
         double valence = 0;

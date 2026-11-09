@@ -1,5 +1,4 @@
 import database.MusicDatabase;
-import database.MusicDatabase.TopPeriod;
 import models.User;
 import models.Song;
 import audiofeatures.ReccoBeats;
@@ -12,7 +11,6 @@ import statistics.UserStatistics;
 import java.io.IOException;
 import java.sql.SQLException;
 import java.util.List;
-import java.util.Locale;
 import java.util.Scanner;
 
 /** Menú de cuentas y actualización de datos del backend de terminal. */
@@ -139,28 +137,15 @@ public class BackendConsole {
     }
 
     private void statisticsMenu(UserStatistics statistics) {
-        TopPeriod[] periods = TopPeriod.values();
         while (true) {
             System.out.println("\nStatistics");
-            System.out.println("1. Average Sadness — Listening History");
-            System.out.println("2. Average Sadness — Top Tracks, Short Term\n3. Average Sadness — Top Tracks, Medium Term\n4. Average Sadness — Top Tracks, Long Term");
-            System.out.println("5. Which Taylor Swift Era Are You?");
+            System.out.println("1. Which Taylor Swift Era Are You?");
             System.out.println("0. Back");
-            int choice = readOption(5, "Enter a number from 0 to 5.");
-            if (choice == 0) return;
-            if (choice == 5) {
-                System.out.println(statistics.closestTaylorSwiftEra()
-                        .map(era -> "You're in your " + era + " era!")
-                        .orElse("No plays with valid energy, valence, and acousticness data."));
-                continue;
-            }
-            var score = choice == 1 ? statistics.historySadness()
-                    : statistics.topTracksSadness(periods[choice - 2]);
-            if (score.isPresent()) {
-                System.out.printf(Locale.ROOT, "Average sadness: %.1f/10 (10 = saddest)%n", score.getAsDouble());
-            } else {
-                System.out.println("No matching tracks with valence data.");
-            }
+            if (readOption(1, "Enter 0 or 1.") == 0) return;
+
+            System.out.println(statistics.closestTaylorSwiftEra()
+                    .map(era -> "You're in your " + era + " era!")
+                    .orElse("No plays with valid energy, valence, and acousticness data."));
         }
     }
 

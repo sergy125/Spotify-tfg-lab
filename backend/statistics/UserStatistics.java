@@ -4,7 +4,6 @@ import database.MusicDatabase;
 import database.MusicDatabase.TopPeriod;
 
 import java.sql.SQLException;
-import java.util.OptionalDouble;
 import java.util.Optional;
 
 public class UserStatistics {
@@ -36,16 +35,8 @@ public class UserStatistics {
         topArtists = newTopArtists;
     }
 
-    public OptionalDouble historySadness() {
-        return history.averageSadness();
-    }
-
     public Optional<String> closestTaylorSwiftEra() {
         return history.closestTaylorSwiftEra();
-    }
-
-    public OptionalDouble topTracksSadness(TopPeriod period) {
-        return topTracks.averageSadness(period);
     }
 
     public ListeningHistoryStatistics getHistory() {
