@@ -1,5 +1,40 @@
 # Backend de terminal
 
+## API de la app
+
+Desde `backend/`, con Java 21 o superior:
+
+```sh
+javac -cp 'lib/*' -d /tmp/spotify-api-classes ApiMain.java api/*.java models/*.java database/*.java spotify/*.java statistics/*.java
+java --enable-native-access=ALL-UNNAMED -cp '/tmp/spotify-api-classes:lib/*' ApiMain
+```
+
+`ApiMain` solo ejecuta `ApiModule.run()`. Configura `SPOTIFY_CLIENT_ID` y
+`SPOTIFY_CLIENT_SECRET`. La API escucha en `127.0.0.1:8888`, configurable con
+`API_PORT`. El callback indicado por `SPOTIFY_REDIRECT_URI` debe llegar a este
+mismo puerto, directamente o mediante el túnel HTTPS. No ejecutes a la vez el
+login del menú de consola en ese puerto. Para un móvil, utiliza el túnel HTTPS
+descrito más abajo, apuntando al puerto de la API.
+
+| Consulta | Resultado |
+| --- | --- |
+| `POST /auth/login` | Devuelve `loginId` y `authorizationUrl`. La app abre esa URL en el navegador. |
+| `GET /auth/result?loginId=...` | La app consulta hasta recibir `status=connected` y `token`. También puede recibir `pending`, `denied` o `failed`. El intento caduca en diez minutos. |
+| `GET /callback?code=...&state=...` | Spotify llama al callback configurado. Guarda la cuenta y confirma la conexión en el navegador. |
+| `GET /session` | Al volver a abrir la app, devuelve el `userId` de la sesión guardada. |
+| `GET /statistics` | Devuelve historial, tops de canciones, tops de artistas y la era calculada por `UserStatistics`. |
+
+Las dos últimas consultas requieren `Authorization: Bearer <token>`. La app
+debe guardar ese token de forma segura. Cada usuario tiene su sesión y el servidor
+atiende peticiones concurrentes. No se devuelven los tokens de Spotify.
+Los intentos y las sesiones se guardan en memoria. Las sesiones duran treinta días
+y se pierden al reiniciar la API, por lo que después hay que conectar de nuevo.
+El `loginId` es secreto porque permite recoger el token de sesión.
+
+Ejecuta Sync por separado para actualizar SQLite. Una cuenta nueva puede recibir
+estadísticas vacías hasta que Sync complete su primera actualización. Las consultas
+de la app leen los datos guardados y no disparan importaciones de Spotify o features.
+
 Ejecutar desde `backend/`, con un JDK 21 o superior:
 
 ```sh

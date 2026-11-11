@@ -10,11 +10,14 @@ import statistics.UserStatistics;
 
 import java.io.IOException;
 import java.sql.SQLException;
+import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Scanner;
 
 /** Menú de cuentas y actualización de datos del backend de terminal. */
 public class BackendConsole {
+    private static final DateTimeFormatter TIME_FORMAT = DateTimeFormatter.ofPattern("HH:mm:ss");
     private final MusicDatabase database;
     private final Scanner input;
     private SpotifyLogin login;
@@ -165,7 +168,8 @@ public class BackendConsole {
             case 8 -> { processor.addArtistTopLong(client.getArtistTopLong(), userId); name = "artist_top_long"; }
             default -> throw new IllegalArgumentException("Tabla no válida.");
         }
-        System.out.println(name + " actualizado para " + userId + ".");
+        System.out.println(name + " actualizado para " + userId
+                + " a las " + LocalTime.now().format(TIME_FORMAT) + ".");
     }
 
     private int readOption(int maximum) {
